@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+import { AiService } from '../../../../server/services/aiService'
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,21 +20,41 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const response = await fetch(`${BACKEND_URL}/api/v2/ai/parse-quiz`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    const aiService = AiService.getInstance()
+    const startTime = Date.now()
+
+    const result = await aiService.generateQuizHtml(
+      body.content,
+      {
+        provider: body.aiConfig.provider || 'gemini',
+        apiKey: body.aiConfig.apiKey,
+        model: body.aiConfig.model
       },
-      body: JSON.stringify(body),
+      body.orderMode || '顺序'
+    )
+
+    const processingTime = Date.now() - startTime
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        html: result.html,
+        originalContent: body.content,
+        questionCount: result.metadata?.questionCount || 0,
+        provider: body.aiConfig.provider || 'gemini',
+        model: body.aiConfig.model || process.env.AI_MODEL || 'gemini-1.5-flash-8b',
+        tokensUsed: result.metadata?.tokensUsed || 0,
+        processingTime
+      }
     })
 
-    const data = await response.json()
-
-    return NextResponse.json(data, { status: response.status })
-  } catch (error) {
-    console.error('API代理错误:', error)
+  } catch (error: any) {
+    console.error('Quiz generation error:', error)
     return NextResponse.json(
-      { success: false, message: '服务器连接失败' },
+      {
+        success: false,
+        message: error.message || '题库生成失败'
+      },
       { status: 500 }
     )
   }
