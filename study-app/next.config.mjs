@@ -1,20 +1,27 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // 支持Docker部署的standalone输出
-  output: 'standalone',
-  
+  // Vercel 部署优化
+  serverExternalPackages: ['@prisma/client'],
+
   // 环境变量配置
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
+    AI_API_KEY: process.env.AI_API_KEY,
+    AI_PROVIDER: process.env.AI_PROVIDER || 'gemini',
+    AI_MODEL: process.env.AI_MODEL || 'gemini-1.5-flash-8b',
   },
 
   // 图片优化配置
   images: {
     remotePatterns: [
       {
+        protocol: 'https',
+        hostname: '*.vercel.app',
+        pathname: '/**',
+      },
+      {
         protocol: 'http',
         hostname: 'localhost',
-        port: '3001',
+        port: '3002',
         pathname: '/**',
       },
     ],
