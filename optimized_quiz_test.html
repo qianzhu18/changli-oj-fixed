@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz App</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .answer-button {
+            @apply cursor-pointer px-4 py-2 rounded border border-gray-300 hover:border-gray-500;
+        }
+        .answer-button.correct {
+            @apply bg-green-500 text-white;
+        }
+        .answer-button.incorrect {
+            @apply bg-red-500 text-white;
+        }
+        .disabled {
+            @apply cursor-not-allowed opacity-50;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4">
+    <div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
+        <h1 class="text-2xl font-bold mb-4">Quiz App</h1>
+
+        <div id="question-container">
+            <p id="question-text" class="mb-4 text-lg">JS是什么？</p>
+            <div id="answers">
+                <button class="answer-button mb-2" data-answer="A">A.  语言</button>
+                <button class="answer-button mb-2" data-answer="B">B. 框架</button>
+            </div>
+        </div>
+
+        <div class="mt-4 flex justify-between">
+            <button id="prev-button" class="disabled bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded" disabled> 上一题</button>
+            <button id="next-button" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">下一题</button>
+        </div>
+
+        <div class="mt-4 text-center">
+            <p id="question-number">题号: 1/1</p>
+        </div>
+
+        <div id="result-container" class="mt-8 hidden">
+            <p id="result-text" class="text-lg font-bold"></p>
+            <button id="restart-button" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">重新开始</button>
+        </div>
+    </div>
+
+    <script>
+        const questions = [
+            {
+                question: "JS是什么？",
+                answers: {
+                    A: "语言",
+                    B: "框架"
+                },
+                correctAnswer: "A"
+            }
+        ];
+
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let answered = false;
+
+        const questionText = document.getElementById('question-text');
+        const answersContainer = document.getElementById('answers');
+        const questionNumber = document.getElementById('question-number');
+        const prevButton = document.getElementById('prev-button');
+        const nextButton = document.getElementById('next-button');
+        const resultContainer = document.getElementById('result-container');
+        const resultText = document.getElementById('result-text');
+        const restartButton = document.getElementById('restart-button');
+
+
+        function displayQuestion() {
+            const question = questions[currentQuestionIndex];
+            questionText.textContent = question.question;
+            answersContainer.innerHTML = '';
+            for (const answer in question.answers) {
+                const button = document.createElement('button');
+                button.classList.add('answer-button', 'mb-2');
+                button.textContent = question.answers[answer];
+                button.dataset.answer = answer;
+                button.addEventListener('click', checkAnswer);
+                answersContainer.appendChild(button);
+            }
+            questionNumber.textContent = `题号: ${currentQuestionIndex + 1}/${questions.length}`;
+            updateNavigationButtons();
+        }
+
+        function checkAnswer(event) {
+            const selectedAnswer = event.target.dataset.answer;
+            const correctAnswer = questions[currentQuestionIndex].correctAnswer;
+            event.target.disabled = true;
+            answered = true;
+
+            if (selectedAnswer === correctAnswer) {
+                event.target.classList.add('correct');
+                score++;
+            } else {
+                event.target.classList.add('incorrect');
+            }
+            updateNavigationButtons();
+
+        }
+
+        function updateNavigationButtons() {
+            prevButton.disabled = currentQuestionIndex === 0;
+            if(answered && currentQuestionIndex === questions.length -1) {
+                nextButton.classList.add('disabled');
+                nextButton.classList.remove('bg-blue-500');
+                nextButton.classList.add('bg-gray-400');
+                showResult();
+            } else if(answered && currentQuestionIndex < questions.length -1){
+                nextButton.classList.remove('disabled');
+                nextButton.classList.remove('bg-gray-400');
+                nextButton.classList.add('bg-blue-500');
+            } else if (!answered){
+                nextButton.classList.remove('disabled');
+                nextButton.classList.remove('bg-gray-400');
+                nextButton.classList.add('bg-blue-500');
+            }
+
+            const questionButtons = document.querySelectorAll('.answer-button');
+            questionButtons.forEach(button => button.classList.remove('disabled'));
+
+            if (answered){
+                questionButtons.forEach(button => button.classList.add('disabled'));
+            }
+        }
+
+
+        function showResult() {
+            resultContainer.classList.remove('hidden');
+            const percentage = (score / questions.length) * 100;
+            resultText.textContent = `你答对了 ${score} 题, 正确率为 ${percentage.toFixed(2)}%`;
+        }
+
+        prevButton.addEventListener('click', () => {
+            currentQuestionIndex--;
+            answered = false;
+            displayQuestion();
+        });
+
+        nextButton.addEventListener('click', () => {
+            if(answered) {
+                currentQuestionIndex++;
+                answered = false;
+                if (currentQuestionIndex < questions.length) {
+                    displayQuestion();
+                }
+            }
+
+        });
+
+        restartButton.addEventListener('click', () => {
+            currentQuestionIndex = 0;
+            score = 0;
+            answered = false;
+            resultContainer.classList.add('hidden');
+            displayQuestion();
+        });
+
+        displayQuestion();
+    </script>
+</body>
+</html>

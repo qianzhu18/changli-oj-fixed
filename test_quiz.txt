@@ -1,0 +1,30 @@
+1. 什么是JavaScript？
+A. 一种编程语言
+B. 一种标记语言
+C. 一种样式语言
+D. 一种数据库
+答案：A
+
+2. HTML的全称是什么？
+A. HyperText Markup Language
+B. High Tech Modern Language
+C. Home Tool Markup Language
+D. Hyperlink and Text Markup Language
+答案：A
+
+3. CSS主要用于什么？
+A. 网页结构
+B. 网页样式
+C. 网页逻辑
+D. 数据存储
+答案：B
+
+4. 请填空：React是由___公司开发的前端框架。
+答案：Facebook
+
+5. Node.js是什么？
+A. 前端框架
+B. JavaScript运行时环境
+C. 数据库
+D. 编程语言
+答案：B
