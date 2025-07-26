@@ -48,3 +48,4 @@ Thumbs.db
 # Temporary files
 tmp/
 temp/
+.env # 确保不会把密钥推到 GitHub
