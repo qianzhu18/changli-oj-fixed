@@ -1,0 +1,192 @@
+{
+  "main": {
+    "id": "1a041e5f9e77d67b",
+    "type": "split",
+    "children": [
+      {
+        "id": "29d4d44b539f19d3",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "d44923ec862c490f",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "技术栈类型学习心得文档.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "技术栈类型学习心得文档"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "db1a87a23b125ae9",
+    "type": "split",
+    "children": [
+      {
+        "id": "cacea7413f052cd7",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "eae63dcfd922f314",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "文件列表"
+            }
+          },
+          {
+            "id": "f7eb3d36acbe996d",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "搜索"
+            }
+          },
+          {
+            "id": "3577106e375e7360",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "书签"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "191b6c90c579a56e",
+    "type": "split",
+    "children": [
+      {
+        "id": "7f10b4608a350ba6",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "6d448a3179ce2bc6",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "技术栈类型学习心得文档.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "技术栈类型学习心得文档 的反向链接列表"
+            }
+          },
+          {
+            "id": "3387b8e22ea1a045",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "技术栈类型学习心得文档.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "技术栈类型学习心得文档 的出链列表"
+            }
+          },
+          {
+            "id": "fb9355672a6a1965",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "标签"
+            }
+          },
+          {
+            "id": "3c25f687026c83cd",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "技术栈类型学习心得文档.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "技术栈类型学习心得文档 的大纲"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:打开快速切换": false,
+      "graph:查看关系图谱": false,
+      "canvas:新建白板": false,
+      "daily-notes:打开/创建今天的日记": false,
+      "templates:插入模板": false,
+      "command-palette:打开命令面板": false
+    }
+  },
+  "active": "d44923ec862c490f",
+  "lastOpenFiles": [
+    "改版评估1.0.md",
+    "study-app/app/api/health/route.ts",
+    "study-app/app/api/health",
+    "study-app/scripts/migrate-production.sh",
+    "study-app/DEPLOYMENT.md",
+    "study-app/scripts/setup-neon.md",
+    "study-app/scripts",
+    "study-app/vercel.json",
+    "migrated_quiz_test.html",
+    "study-app/server/services/aiService.ts",
+    "study-app/server/providers/GeminiProvider.ts",
+    "study-app/server/interfaces/IAiProvider.ts",
+    "study-app/server/interfaces",
+    "node_modules/@google/generative-ai/README.md",
+    "技术栈改变文档一览.md",
+    "技术栈类型改变.md",
+    "技术栈类型学习心得文档.md",
+    "后端初步设计.md"
+  ]
+}

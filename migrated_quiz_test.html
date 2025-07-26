@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JavaScript 刷题</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .question-container {
+          max-width: 800px;
+          margin: 20px auto;
+          padding: 20px;
+          border: 1px solid #ccc;
+          border-radius: 8px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div id="quiz-container" class="question-container">
+      <h2 id="question"></h2>
+      <ul id="options" class="mt-4"></ul>
+      <div id="feedback" class="mt-2"></div>
+      <div class="flex justify-between mt-4">
+          <button id="prev-question" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50" disabled>上一题</button>
+          <button id="next-question" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">下一题</button>
+      </div>
+      <div id="question-numbers" class="mt-2"></div>
+      <button id="restart-button" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mt-4 hidden">重新开始</button>
+    </div>
+
+    <script>
+        const questions = [
+            {
+                question: "JavaScript是什么？",
+                options: [
+                    "编程语言",
+                    "标记语言"
+                ],
+                answer: 0, // Index of the correct answer
+                explanation: ""
+            }
+        ];
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let answered = [];
+
+        function displayQuestion() {
+            const question = questions[currentQuestionIndex];
+            document.getElementById("question").textContent = question.question;
+            const optionsList = document.getElementById("options");
+            optionsList.innerHTML = "";
+            question.options.forEach((option, i) => {
+                const optionElement = document.createElement("li");
+                optionElement.textContent = option;
+                optionElement.classList.add("py-2", "px-4", "border", "border-gray-300", "rounded", "cursor-pointer");
+                optionElement.addEventListener("click", () => checkAnswer(i));
+                optionsList.appendChild(optionElement);
+            });
+            updateQuestionNumbers();
+        }
+      function updateQuestionNumbers() {
+        const questionNumbersDiv = document.getElementById("question-numbers");
+        questionNumbersDiv.innerHTML = "";
+        for (let i = 0; i < questions.length; i++) {
+          const numSpan = document.createElement("span");
+          numSpan.textContent = i + 1;
+          numSpan.classList.add("px-2", "py-1", "mr-2", "text-gray-600");
+          numSpan.style.backgroundColor = answered[i] ? (answered[i] === questions[i].answer ? "green" : "red") : "blue";
+          numSpan.style.borderRadius = "5px";
+          numSpan.style.color = "white";
+          numSpan.style.cursor = "pointer";
+          numSpan.addEventListener('click', () => {
+            currentQuestionIndex = i;
+            displayQuestion();
+          });
+          questionNumbersDiv.appendChild(numSpan);
+        }
+      }
+
+        function checkAnswer(selectedOption) {
+            const question = questions[currentQuestionIndex];
+            if(answered[currentQuestionIndex] !== undefined){
+              return
+            }
+            answered[currentQuestionIndex] = (selectedOption === question.answer);
+            const feedback = document.getElementById("feedback");
+            if (selectedOption === question.answer) {
+                feedback.textContent = "Correct!";
+                feedback.classList.add("text-green-600");
+                score++;
+            } else {
+                feedback.textContent = "Incorrect. Correct Answer: " + question.options[question.answer];
+                feedback.classList.add("text-red-600");
+            }
+            feedback.classList.add("font-bold");
+            feedback.style.fontSize = '1.2rem';
+            feedback.style.textAlign = 'center';
+
+            updateQuestionNumbers();
+            disableOptions();
+        }
+
+        function disableOptions() {
+          const options = document.querySelectorAll('#options li');
+          options.forEach(option => {
+            option.classList.add('bg-gray-200');
+            option.disabled = true;
+          })
+        }
+        function updateResults() {
+            const totalQuestions = questions.length;
+            const accuracy = ((score / totalQuestions) * 100).toFixed(2) + "%";
+            alert("Quiz Complete!\nScore: " + score + "/" + totalQuestions + "\nAccuracy: " + accuracy);
+        }
+
+        displayQuestion();
+        
+        document.getElementById("next-question").addEventListener("click", () => {
+            if (currentQuestionIndex < questions.length - 1) {
+                currentQuestionIndex++;
+                displayQuestion();
+                const options = document.querySelectorAll('#options li');
+                options.forEach(option => {
+                    option.classList.remove('bg-gray-200');
+                    option.disabled = false;
+                });
+                document.getElementById("feedback").textContent = "";
+                document.getElementById("feedback").classList.remove("text-red-600", "text-green-600");
+
+            } else {
+              updateResults();
+              document.getElementById("restart-button").classList.remove('hidden');
+              document.getElementById("next-question").disabled = true;
+            }
+        });
+
+        document.getElementById("prev-question").addEventListener("click", () => {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                displayQuestion();
+                const options = document.querySelectorAll('#options li');
+                options.forEach(option => {
+                    option.classList.remove('bg-gray-200');
+                    option.disabled = false;
+                });
+                document.getElementById("feedback").textContent = "";
+                document.getElementById("feedback").classList.remove("text-red-600", "text-green-600");
+            }
+        });
+
+          document.getElementById("restart-button").addEventListener("click", () => {
+              currentQuestionIndex = 0;
+              score = 0;
+              answered = [];
+              displayQuestion();
+              document.getElementById("next-question").disabled = false;
+              document.getElementById("restart-button").classList.add('hidden');
+              const options = document.querySelectorAll('#options li');
+              options.forEach(option => {
+                option.classList.remove('bg-gray-200');
+                option.disabled = false;
+              });
+          });
+
+    </script>
+</body>
+</html>
