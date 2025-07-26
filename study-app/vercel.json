@@ -18,7 +18,7 @@
       "maxDuration": 60
     }
   },
-  "regions": ["hkg1", "sin1", "nrt1"],
+  "regions": ["hkg1", "sin1", "hnd1"],
   "rewrites": [
     {
       "source": "/api/(.*)",
