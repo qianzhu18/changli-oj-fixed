@@ -1,4 +1,5 @@
 import { GeminiProvider } from '../providers/GeminiProvider';
+import { TwoAPIProvider } from '../providers/TwoAPIProvider';
 import { IAiProvider, QuizGenerationOptions, ValidationResult } from '../interfaces/IAiProvider';
 
 export class AiService {
@@ -19,11 +20,11 @@ export class AiService {
    */
   getProvider(config: {
     provider: string;
-    apiKey: string;
+    apiKey?: string;
     model?: string;
   }): IAiProvider {
-    const key = `${config.provider}-${config.apiKey}`;
-    
+    const key = `${config.provider}-${config.apiKey || 'default'}`;
+
     if (this.providers.has(key)) {
       return this.providers.get(key)!;
     }
@@ -32,9 +33,18 @@ export class AiService {
 
     switch (config.provider.toLowerCase()) {
       case 'gemini':
+        if (!config.apiKey) {
+          throw new Error('Gemini provider requires API key');
+        }
         provider = new GeminiProvider({
           apiKey: config.apiKey,
           model: config.model || process.env.AI_MODEL || 'gemini-1.5-flash-8b'
+        });
+        break;
+      case 'twoapi':
+        // TwoAPI不需要用户提供API密钥，使用内置配置
+        provider = new TwoAPIProvider({
+          model: config.model || 'gemini-2.5-pro-preview-06-05'
         });
         break;
       default:
@@ -50,7 +60,7 @@ export class AiService {
    */
   async validateApiKey(config: {
     provider: string;
-    apiKey: string;
+    apiKey?: string;
     model?: string;
   }): Promise<ValidationResult> {
     try {
@@ -72,7 +82,7 @@ export class AiService {
     content: string,
     config: {
       provider: string;
-      apiKey: string;
+      apiKey?: string;
       model?: string;
     },
     orderMode: '顺序' | '随机' = '顺序'
@@ -107,7 +117,7 @@ export class AiService {
    */
   async healthCheck(config: {
     provider: string;
-    apiKey: string;
+    apiKey?: string;
     model?: string;
   }): Promise<boolean> {
     try {

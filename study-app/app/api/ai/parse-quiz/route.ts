@@ -46,9 +46,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!aiConfig?.apiKey) {
+    // 设置默认AI配置，优先使用TwoAPI（无需API密钥）
+    if (!aiConfig) {
+      aiConfig = {
+        provider: 'twoapi',
+        model: 'gemini-2.5-pro-preview-06-05'
+      }
+    }
+
+    // 如果没有指定provider，默认使用twoapi
+    if (!aiConfig.provider) {
+      aiConfig.provider = 'twoapi'
+    }
+
+    // 只有使用gemini provider时才需要API密钥
+    if (aiConfig.provider === 'gemini' && !aiConfig.apiKey) {
       return NextResponse.json(
-        { success: false, message: 'AI配置信息是必需的' },
+        { success: false, message: 'Gemini provider需要API密钥' },
         { status: 400 }
       )
     }
@@ -59,7 +73,7 @@ export async function POST(request: NextRequest) {
     const result = await aiService.generateQuizHtml(
       content,
       {
-        provider: aiConfig.provider || 'gemini',
+        provider: aiConfig.provider || 'twoapi',
         apiKey: aiConfig.apiKey,
         model: aiConfig.model
       },
@@ -74,8 +88,8 @@ export async function POST(request: NextRequest) {
         html: result.html,
         originalContent: content,
         questionCount: result.metadata?.questionCount || 0,
-        provider: aiConfig.provider || 'gemini',
-        model: aiConfig.model || process.env.AI_MODEL || 'gemini-1.5-flash-8b',
+        provider: aiConfig.provider || 'twoapi',
+        model: aiConfig.model || 'gemini-2.5-pro-preview-06-05',
         tokensUsed: result.metadata?.tokensUsed || 0,
         processingTime
       }

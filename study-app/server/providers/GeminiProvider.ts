@@ -1,8 +1,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { 
-  IAiProvider, 
-  ValidationResult, 
-  QuizGenerationOptions, 
+import {
+  IAiProvider,
+  ValidationResult,
+  QuizGenerationOptions,
   QuizGenerationResult,
   AiProviderError,
   AI_ERROR_CODES

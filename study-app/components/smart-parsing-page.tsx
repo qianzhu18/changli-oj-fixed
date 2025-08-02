@@ -46,7 +46,6 @@ export function SmartParsingPage() {
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1)
   const [userChoice, setUserChoice] = useState<"顺序" | "随机" | null>(null)
   const [parsedQuestions, setParsedQuestions] = useState<ParsedQuestion[]>([])
-  const [hasApiKey, setHasApiKey] = useState(false)
   const [showTitleDialog, setShowTitleDialog] = useState(false)
   const [quizTitle, setQuizTitle] = useState("")
   const [showPreview, setShowPreview] = useState(false) // 新增：控制预览显示
@@ -56,26 +55,7 @@ export function SmartParsingPage() {
   const [loadingMessage, setLoadingMessage] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // 检查API密钥状态
-  useEffect(() => {
-    const checkApiKey = () => {
-      const savedKey = localStorage.getItem("gemini_api_key")
-      setHasApiKey(!!savedKey)
-    }
-
-    checkApiKey()
-
-    // 监听localStorage变化
-    const handleStorageChange = () => {
-      checkApiKey()
-    }
-
-    window.addEventListener('storage', handleStorageChange)
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange)
-    }
-  }, [])
+  // 移除API密钥检查，现在使用TwoAPI无需用户配置
 
   const supportedFormats = [
     { ext: "docx", mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", icon: FileText },
@@ -167,12 +147,6 @@ export function SmartParsingPage() {
   }
 
   const handleStartParsing = async () => {
-    // 检查API密钥
-    if (!hasApiKey) {
-      setError("请先在API配置中设置您的Google API密钥")
-      return
-    }
-
     if (!uploadedFile && !content.trim()) {
       setError("请上传文件或输入题库内容")
       return
@@ -193,18 +167,16 @@ export function SmartParsingPage() {
       if (currentStep === 2 && userChoice) {
         let parseResponse: Response
 
-        // 获取API密钥
-        const apiKey = localStorage.getItem("gemini_api_key")
-        if (!apiKey) {
-          throw new Error("未找到API密钥，请重新设置")
-        }
-
         if (uploadedFile) {
           // 文件上传模式
           const formData = new FormData()
           formData.append('file', uploadedFile)
-          formData.append('order', userChoice)
-          formData.append('apiKey', apiKey)
+          formData.append('orderMode', userChoice)
+          // 使用TwoAPI，无需API密钥
+          formData.append('aiConfig', JSON.stringify({
+            provider: 'twoapi',
+            model: 'gemini-2.5-pro-preview-06-05'
+          }))
 
           parseResponse = await fetch('/api/ai/parse-quiz', {
             method: 'POST',
@@ -218,10 +190,12 @@ export function SmartParsingPage() {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              fileContent: content,
-              fileName: "手动输入.txt",
-              order: userChoice,
-              apiKey: apiKey
+              content: content,
+              orderMode: userChoice,
+              aiConfig: {
+                provider: 'twoapi',
+                model: 'gemini-2.5-pro-preview-06-05'
+              }
             })
           })
         }
@@ -236,75 +210,37 @@ export function SmartParsingPage() {
           throw new Error(parseResult.message || '解析失败')
         }
 
-        const taskId = parseResult.taskId
+        setLoadingMessage("AI正在生成题库...")
+        setLoadingProgress(80)
 
-        // 轮询检查解析状态
-        let attempts = 0
-        const maxAttempts = 30 // 最多等待30秒
+        // 直接获取生成的HTML内容（TwoAPI直接返回结果）
+        const htmlContent = parseResult.data?.html
 
-        setLoadingMessage("正在解析文件内容...")
-        setLoadingProgress(20)
+        if (htmlContent) {
+          setLoadingMessage("生成题库完成！")
+          setLoadingProgress(100)
 
-        while (attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 1000)) // 等待1秒
+          // 保存生成的HTML内容
+          setGeneratedHtml(htmlContent)
+          localStorage.setItem('generatedQuizHtml', htmlContent)
 
-          const statusResponse = await fetch(`/api/ai/parse-status/${taskId}`)
-
-          if (!statusResponse.ok) {
-            throw new Error('状态查询失败')
-          }
-
-          const statusResult = await statusResponse.json()
-
-          // 更新进度
-          const progress = Math.min(20 + (attempts / maxAttempts) * 60, 80)
-          setLoadingProgress(progress)
-
-          if (statusResult.success && statusResult.status === 'completed') {
-            setLoadingMessage("生成题库完成！")
-            setLoadingProgress(100)
-
-            // 解析完成，显示结果
-            const htmlContent = statusResult.result.html
-
-            if (htmlContent) {
-              // 保存生成的HTML内容
-              setGeneratedHtml(htmlContent)
-              localStorage.setItem('generatedQuizHtml', htmlContent)
-
-              // 创建模拟题目数据用于预览
-              const mockQuestions: ParsedQuestion[] = [
-                {
-                  id: "1",
-                  question: "基于您上传的文件生成的题目示例",
-                  answer: "这是一个示例答案",
-                  type: "multiple-choice",
-                  options: ["选项A", "选项B", "选项C", "选项D"]
-                }
-              ]
-
-              setParsedQuestions(mockQuestions)
-              setCurrentStep(3)
-              setShowPreview(true)
-              setShowTitleDialog(true)
-            } else {
-              throw new Error('生成的HTML内容为空')
+          // 创建模拟题目数据用于预览
+          const mockQuestions: ParsedQuestion[] = [
+            {
+              id: "1",
+              question: "基于您上传的文件生成的题目示例",
+              answer: "这是一个示例答案",
+              type: "multiple-choice",
+              options: ["选项A", "选项B", "选项C", "选项D"]
             }
+          ]
 
-            break
-          } else if (statusResult.status === 'failed') {
-            throw new Error('解析失败：' + (statusResult.error || '未知错误'))
-          } else if (statusResult.status === 'processing') {
-            setLoadingMessage("AI正在分析文件内容...")
-          } else if (statusResult.status === 'generating') {
-            setLoadingMessage("正在生成题库...")
-          }
-
-          attempts++
-        }
-
-        if (attempts >= maxAttempts) {
-          throw new Error('解析超时，请重试')
+          setParsedQuestions(mockQuestions)
+          setCurrentStep(3)
+          setShowPreview(true)
+          setShowTitleDialog(true)
+        } else {
+          throw new Error('生成的HTML内容为空')
         }
       }
     } catch (error) {
@@ -320,8 +256,6 @@ export function SmartParsingPage() {
           errorMessage = "解析超时，文件可能过大或网络较慢，请稍后重试"
         } else if (error.message.includes('格式')) {
           errorMessage = "文件格式不支持或文件已损坏，请检查文件后重新上传"
-        } else if (error.message.includes('API')) {
-          errorMessage = "API密钥验证失败，请检查密钥设置"
         } else {
           errorMessage = error.message
         }
@@ -458,22 +392,13 @@ export function SmartParsingPage() {
             </div>
           </div>
 
-          {/* API密钥状态提醒 */}
-          {!hasApiKey && (
-            <Alert className="mb-6 border-amber-200 bg-amber-50">
-              <Key className="h-4 w-4 text-amber-600" />
-              <AlertDescription className="text-amber-800">
-                未检测到Google API密钥。请在右上角"API配置"中设置您的密钥后再开始解析。
-                <Button 
-                  variant="link" 
-                  className="p-0 h-auto ml-2 text-amber-700 hover:text-amber-900"
-                  onClick={() => setHasApiKey(true)}
-                >
-                  模拟已设置
-                </Button>
-              </AlertDescription>
-            </Alert>
-          )}
+          {/* 服务状态提醒 */}
+          <Alert className="mb-6 border-green-200 bg-green-50">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-800">
+              ✨ 智能题库服务已就绪！无需配置API密钥，直接上传文件即可开始生成题库。
+            </AlertDescription>
+          </Alert>
 
           {error && (
             <Alert variant="destructive" className="mb-6 border-red-200 bg-red-50">
@@ -752,7 +677,7 @@ export function SmartParsingPage() {
                   <div className="flex justify-center pt-4">
                     <Button
                       onClick={handleStartParsing}
-                      disabled={(!uploadedFile && !content.trim()) || isLoading || !hasApiKey}
+                      disabled={(!uploadedFile && !content.trim()) || isLoading}
                       size="lg"
                       className="swordsman-button px-12 py-4 text-xl h-16 rounded-xl"
                     >

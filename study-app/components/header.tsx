@@ -9,12 +9,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Settings, User, LogOut, Key, Heart, MessageCircle, ArrowLeft } from "lucide-react"
+import { Settings, User, LogOut, Heart, MessageCircle, ArrowLeft } from "lucide-react"
 import { useUserProfile } from "@/hooks/use-user-profile"
 
 interface HeaderProps {
   onLogout: () => void
-  onOpenApiDialog: () => void
   onOpenProfileDialog: () => void
   onOpenContactDialog: () => void
   onOpenDonationDialog: () => void
@@ -23,9 +22,8 @@ interface HeaderProps {
   userEmail?: string // 用户登录邮箱
 }
 
-export function Header({ 
-  onLogout, 
-  onOpenApiDialog, 
+export function Header({
+  onLogout,
   onOpenProfileDialog,
   onOpenContactDialog,
   onOpenDonationDialog,
@@ -79,15 +77,7 @@ export function Header({
             <span>打赏作者</span>
           </Button>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onOpenApiDialog}
-            className="flex items-center space-x-2 bg-transparent"
-          >
-            <Key className="h-4 w-4" />
-            <span>API 配置</span>
-          </Button>
+
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

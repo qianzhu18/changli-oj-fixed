@@ -7,7 +7,7 @@ import { RightContent } from "@/components/right-content"
 import { SmartParsingPage } from "@/components/smart-parsing-page"
 import { QuizLibrary } from "@/components/quiz-library"
 import { QuizPreview } from "@/components/quiz-preview"
-import { ApiKeyDialog } from "@/components/api-key-dialog"
+
 import { ProfileDialog } from "@/components/profile-dialog"
 import { ContactAuthorDialog } from "@/components/contact-author-dialog"
 import { DonationDialog } from "@/components/donation-dialog"
@@ -46,7 +46,7 @@ interface QuizLibraryItem {
 }
 
 export function MainDashboard({ onLogout, userEmail = "user@example.com" }: MainDashboardProps) {
-  const [showApiDialog, setShowApiDialog] = useState(false)
+
   const [showProfileDialog, setShowProfileDialog] = useState(false)
   const [showContactDialog, setShowContactDialog] = useState(false)
   const [showDonationDialog, setShowDonationDialog] = useState(false)
@@ -160,7 +160,6 @@ export function MainDashboard({ onLogout, userEmail = "user@example.com" }: Main
       <div className="min-h-screen bg-gray-50">
         <Header
           onLogout={onLogout}
-          onOpenApiDialog={() => setShowApiDialog(true)}
           onOpenProfileDialog={() => setShowProfileDialog(true)}
           onOpenContactDialog={() => setShowContactDialog(true)}
           onOpenDonationDialog={() => setShowDonationDialog(true)}
@@ -171,7 +170,7 @@ export function MainDashboard({ onLogout, userEmail = "user@example.com" }: Main
 
         <SmartParsingPage />
 
-        <ApiKeyDialog open={showApiDialog} onOpenChange={setShowApiDialog} />
+
         <ProfileDialog
           open={showProfileDialog}
           onOpenChange={setShowProfileDialog}
@@ -188,7 +187,6 @@ export function MainDashboard({ onLogout, userEmail = "user@example.com" }: Main
       <div className="min-h-screen bg-gray-50">
         <Header
           onLogout={onLogout}
-          onOpenApiDialog={() => setShowApiDialog(true)}
           onOpenProfileDialog={() => setShowProfileDialog(true)}
           onOpenContactDialog={() => setShowContactDialog(true)}
           onOpenDonationDialog={() => setShowDonationDialog(true)}
@@ -213,7 +211,6 @@ export function MainDashboard({ onLogout, userEmail = "user@example.com" }: Main
           )}
         </div>
 
-        <ApiKeyDialog open={showApiDialog} onOpenChange={setShowApiDialog} />
         <ProfileDialog
           open={showProfileDialog}
           onOpenChange={setShowProfileDialog}
@@ -229,7 +226,6 @@ export function MainDashboard({ onLogout, userEmail = "user@example.com" }: Main
     <div className="min-h-screen bg-gray-50">
       <Header
         onLogout={onLogout}
-        onOpenApiDialog={() => setShowApiDialog(true)}
         onOpenProfileDialog={() => setShowProfileDialog(true)}
         onOpenContactDialog={() => setShowContactDialog(true)}
         onOpenDonationDialog={() => setShowDonationDialog(true)}
@@ -254,8 +250,7 @@ export function MainDashboard({ onLogout, userEmail = "user@example.com" }: Main
         />
       </div>
 
-      <ApiKeyDialog open={showApiDialog} onOpenChange={setShowApiDialog} />
-      <ProfileDialog 
+      <ProfileDialog
         open={showProfileDialog} 
         onOpenChange={setShowProfileDialog}
         loginEmail={userEmail}

@@ -1,7 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { AiService } from '../../../../server/services/aiService'
 
-async function validateApiKey(apiKey: string, provider: string = 'gemini', model?: string) {
+async function validateApiKey(apiKey: string, provider: string = 'twoapi', model?: string) {
+  // TwoAPI不需要API密钥验证，直接返回成功
+  if (provider === 'twoapi') {
+    return NextResponse.json({
+      valid: true,
+      provider,
+      quota: {
+        used: 0,
+        limit: 10000,
+        remaining: 10000
+      },
+      reason: 'TwoAPI service is available'
+    })
+  }
+
   if (!apiKey) {
     return NextResponse.json(
       { valid: false, reason: 'API Key is required' },
@@ -39,7 +53,7 @@ async function validateApiKey(apiKey: string, provider: string = 'gemini', model
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const apiKey = searchParams.get('apiKey')
-  const provider = searchParams.get('provider') || 'gemini'
+  const provider = searchParams.get('provider') || 'twoapi'
   const model = searchParams.get('model')
 
   return validateApiKey(apiKey || '', provider, model || undefined)
@@ -48,7 +62,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { apiKey, provider = 'gemini', model } = body
+    const { apiKey, provider = 'twoapi', model } = body
 
     return validateApiKey(apiKey, provider, model)
 
