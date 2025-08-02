@@ -14,12 +14,30 @@ interface InkWashLoginProps {
 }
 
 export function InkWashLogin({ onLogin }: InkWashLoginProps) {
+  const [mounted, setMounted] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [loginForm, setLoginForm] = useState({ email: "", password: "" })
   const [registerForm, setRegisterForm] = useState({ name: "", email: "", password: "", confirmPassword: "" })
   const [isVisible, setIsVisible] = useState(false)
 
+  // 固定的随机值，避免hydration错误
+  const inkDrops = [
+    { width: 6, height: 5, opacity: 0.3, left: 15, top: 20, duration: 4 },
+    { width: 4, height: 6, opacity: 0.2, left: 80, top: 10, duration: 3 },
+    { width: 8, height: 4, opacity: 0.4, left: 60, top: 70, duration: 5 },
+    { width: 3, height: 7, opacity: 0.1, left: 25, top: 85, duration: 2 },
+    { width: 7, height: 3, opacity: 0.3, left: 90, top: 40, duration: 4 },
+    { width: 5, height: 8, opacity: 0.2, left: 40, top: 60, duration: 3 },
+    { width: 4, height: 4, opacity: 0.4, left: 70, top: 25, duration: 5 },
+    { width: 6, height: 5, opacity: 0.1, left: 10, top: 50, duration: 2 },
+    { width: 3, height: 6, opacity: 0.3, left: 85, top: 15, duration: 4 },
+    { width: 8, height: 3, opacity: 0.2, left: 50, top: 80, duration: 3 },
+    { width: 5, height: 7, opacity: 0.4, left: 20, top: 65, duration: 5 },
+    { width: 4, height: 5, opacity: 0.1, left: 75, top: 45, duration: 2 }
+  ]
+
   useEffect(() => {
+    setMounted(true)
     // 页面加载时的淡入动画
     setTimeout(() => setIsVisible(true), 100)
   }, [])
@@ -34,6 +52,11 @@ export function InkWashLogin({ onLogin }: InkWashLoginProps) {
     e.preventDefault()
     // 传递用户邮箱给父组件
     onLogin(registerForm.email || "user@example.com")
+  }
+
+  // 防止hydration错误
+  if (!mounted) {
+    return null
   }
 
   return (
@@ -68,19 +91,19 @@ export function InkWashLogin({ onLogin }: InkWashLoginProps) {
         />
 
         {/* 墨点飞溅 */}
-        {[...Array(12)].map((_, i) => (
+        {mounted && inkDrops.map((drop, i) => (
           <div
             key={i}
             className="absolute rounded-full animate-float-ink"
             style={{
-              width: `${Math.random() * 8 + 2}px`,
-              height: `${Math.random() * 8 + 2}px`,
+              width: `${drop.width}px`,
+              height: `${drop.height}px`,
               backgroundColor: "#1A1A1A",
-              opacity: Math.random() * 0.4 + 0.1,
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              opacity: drop.opacity,
+              left: `${drop.left}%`,
+              top: `${drop.top}%`,
               animationDelay: `${i * 0.5}s`,
-              animationDuration: `${Math.random() * 3 + 2}s`,
+              animationDuration: `${drop.duration}s`,
             }}
           />
         ))}

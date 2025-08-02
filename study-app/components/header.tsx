@@ -97,10 +97,6 @@ export function Header({
                 <User className="mr-2 h-4 w-4" />
                 <span>个人资料</span>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={onOpenApiDialog}>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>设置</span>
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={onOpenContactDialog}>
                 <MessageCircle className="mr-2 h-4 w-4" />

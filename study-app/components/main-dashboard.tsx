@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Header } from "@/components/header"
 import { LeftSidebar } from "@/components/left-sidebar"
 import { RightContent } from "@/components/right-content"
@@ -46,12 +46,16 @@ interface QuizLibraryItem {
 }
 
 export function MainDashboard({ onLogout, userEmail = "user@example.com" }: MainDashboardProps) {
-
+  const [mounted, setMounted] = useState(false)
   const [showProfileDialog, setShowProfileDialog] = useState(false)
   const [showContactDialog, setShowContactDialog] = useState(false)
   const [showDonationDialog, setShowDonationDialog] = useState(false)
   const [currentView, setCurrentView] = useState<"dashboard" | "smart-parsing" | "quiz-library">("dashboard")
   const [previewQuiz, setPreviewQuiz] = useState<QuizLibraryItem | null>(null)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
   
   const [questionBanks, setQuestionBanks] = useState<QuestionBank[]>([
     {
@@ -75,7 +79,7 @@ export function MainDashboard({ onLogout, userEmail = "user@example.com" }: Main
 
   const handleCreateQuestionBank = (title: string, content: string) => {
     const newBank: QuestionBank = {
-      id: Date.now().toString(),
+      id: `bank_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
       title,
       content,
       createdAt: new Date(),
@@ -153,6 +157,11 @@ export function MainDashboard({ onLogout, userEmail = "user@example.com" }: Main
 
   const handleBackToDashboard = () => {
     setCurrentView("dashboard")
+  }
+
+  // 防止hydration错误
+  if (!mounted) {
+    return null
   }
 
   if (currentView === "smart-parsing") {

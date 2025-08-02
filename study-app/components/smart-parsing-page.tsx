@@ -39,6 +39,7 @@ interface ParsedQuestion {
 }
 
 export function SmartParsingPage() {
+  const [mounted, setMounted] = useState(false)
   const [content, setContent] = useState("")
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -55,7 +56,206 @@ export function SmartParsingPage() {
   const [loadingMessage, setLoadingMessage] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // 移除API密钥检查，现在使用TwoAPI无需用户配置
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // AI API配置
+  const AI_CONFIG = {
+    apiKey: 'sk-1e49426A5A63Ee3C33256F17EF152C02',
+    baseUrl: 'https://twoapi-ui.qiangtu.com/v1'
+  }
+
+  // AI调用函数
+  const callAIAPI = async (content: string, orderMode: string) => {
+    const systemPrompt = buildQuizSystemPrompt(orderMode)
+
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 300000) // 5分钟超时
+
+    try {
+      const response = await fetch(`${AI_CONFIG.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${AI_CONFIG.apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gemini-2.5-pro-preview-06-05',
+          stream: true,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: content }
+          ],
+          temperature: 0.7
+        }),
+        signal: controller.signal
+      })
+
+      if (!response.ok) {
+        throw new Error('AI API请求失败')
+      }
+
+      const reader = response.body!.getReader()
+      const decoder = new TextDecoder()
+      let fullContent = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value, { stream: true })
+        const lines = chunk.split('\n')
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const dataStr = line.slice(6).trim()
+            if (dataStr === '[DONE]') break
+
+            try {
+              const data = JSON.parse(dataStr)
+              if (data.choices[0].delta?.content) {
+                fullContent += data.choices[0].delta.content
+              }
+            } catch (e) {
+              // 忽略解析错误
+            }
+          }
+        }
+      }
+
+      clearTimeout(timeoutId)
+      return extractHtmlFromResponse(fullContent)
+
+    } catch (error) {
+      clearTimeout(timeoutId)
+      throw error
+    }
+  }
+
+  // 构建题库生成的系统提示词
+  const buildQuizSystemPrompt = (orderMode: string) => {
+    return `# 智能题库生成系统
+
+角色：专业题库设计师
+
+你是一名专业的题库设计师，擅长从各种学习材料中提取关键知识点并设计高质量的题目。
+
+## 任务
+
+从我提供的内容中，提取重要知识点并生成一套完整的题库，包含多种题型，适合在线学习和考试练习。
+
+### 题库要求
+
+1. **题目数量**：根据内容长度生成15-30道题目
+2. **题型多样**：
+   - 单选题（40%）
+   - 多选题（30%）
+   - 判断题（20%）
+   - 填空题（10%）
+
+3. **难度分布**：
+   - 基础题（50%）：考查基本概念和定义
+   - 中等题（35%）：考查理解和应用
+   - 困难题（15%）：考查分析和综合
+
+4. **题目顺序**：${orderMode === '顺序' ? '按照内容出现的顺序排列' : '随机打乱顺序'}
+
+### 输出格式
+
+请生成一个完整的HTML文件，包含：
+- 响应式设计，适配手机和电脑
+- 现代化的UI界面
+- 交互式答题功能
+- 实时评分系统
+- 答案解析功能
+
+### HTML结构要求
+
+\`\`\`html
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能题库练习</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- 题库内容 -->
+</body>
+</html>
+\`\`\`
+
+### 设计要求
+
+- 使用Tailwind CSS进行样式设计
+- 包含进度条显示答题进度
+- 每题显示题号、题目、选项
+- 提交后显示正确答案和解析
+- 最终显示总分和详细报告
+- 支持重新开始功能
+
+### 交互功能
+
+- 单选题：点击选择答案
+- 多选题：可选择多个答案
+- 判断题：选择对或错
+- 填空题：输入文本答案
+- 提交按钮：检查答案并显示结果
+
+请确保生成的HTML文件是完整的、可直接运行的，包含所有必要的JavaScript交互逻辑。
+
+待处理内容：`
+  }
+
+  // 从AI响应中提取HTML内容
+  const extractHtmlFromResponse = (content: string) => {
+    // 首先解码转义字符
+    let decodedContent = content
+      .replace(/\\u003c/g, '<')
+      .replace(/\\u003e/g, '>')
+      .replace(/\\"/g, '"')
+      .replace(/\\n/g, '\n')
+      .replace(/\\t/g, '\t')
+      .replace(/\\r/g, '\r')
+      .replace(/\\\\/g, '\\')
+
+    // 尝试提取代码块中的HTML
+    const codeBlockRegex = /```html\n([\s\S]*?)\n```/
+    const match = decodedContent.match(codeBlockRegex)
+
+    if (match && match[1]) {
+      return match[1]
+    }
+
+    // 尝试提取没有语言标识的代码块
+    const generalCodeBlockRegex = /```\n([\s\S]*?)\n```/
+    const generalMatch = decodedContent.match(generalCodeBlockRegex)
+
+    if (generalMatch && generalMatch[1] &&
+        (generalMatch[1].trim().startsWith('<!DOCTYPE html') || generalMatch[1].trim().startsWith('<html'))) {
+      return generalMatch[1]
+    }
+
+    // 如果没有代码块，尝试查找HTML标签
+    const htmlTagRegex = /<html[\s\S]*<\/html>/i
+    const htmlMatch = decodedContent.match(htmlTagRegex)
+
+    if (htmlMatch) {
+      return htmlMatch[0]
+    }
+
+    // 检查是否直接以HTML开头
+    const trimmedContent = decodedContent.trim()
+    if (trimmedContent.startsWith('<!DOCTYPE html') || trimmedContent.startsWith('<html')) {
+      return trimmedContent
+    }
+
+    // 如果都没有，返回原始内容
+    return decodedContent
+  }
 
   const supportedFormats = [
     { ext: "docx", mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", icon: FileText },
@@ -165,56 +365,11 @@ export function SmartParsingPage() {
 
       // 步骤2：处理文件并生成题库
       if (currentStep === 2 && userChoice) {
-        let parseResponse: Response
-
-        if (uploadedFile) {
-          // 文件上传模式
-          const formData = new FormData()
-          formData.append('file', uploadedFile)
-          formData.append('orderMode', userChoice)
-          // 使用TwoAPI，无需API密钥
-          formData.append('aiConfig', JSON.stringify({
-            provider: 'twoapi',
-            model: 'gemini-2.5-pro-preview-06-05'
-          }))
-
-          parseResponse = await fetch('/api/ai/parse-quiz', {
-            method: 'POST',
-            body: formData
-          })
-        } else {
-          // 文本输入模式
-          parseResponse = await fetch('/api/ai/parse-quiz', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              content: content,
-              orderMode: userChoice,
-              aiConfig: {
-                provider: 'twoapi',
-                model: 'gemini-2.5-pro-preview-06-05'
-              }
-            })
-          })
-        }
-
-        if (!parseResponse.ok) {
-          throw new Error('解析请求失败')
-        }
-
-        const parseResult = await parseResponse.json()
-
-        if (!parseResult.success) {
-          throw new Error(parseResult.message || '解析失败')
-        }
-
         setLoadingMessage("AI正在生成题库...")
         setLoadingProgress(80)
 
-        // 直接获取生成的HTML内容（TwoAPI直接返回结果）
-        const htmlContent = parseResult.data?.html
+        // 直接调用AI API生成题库
+        const htmlContent = await callAIAPI(content, userChoice)
 
         if (htmlContent) {
           setLoadingMessage("生成题库完成！")
@@ -222,7 +377,9 @@ export function SmartParsingPage() {
 
           // 保存生成的HTML内容
           setGeneratedHtml(htmlContent)
-          localStorage.setItem('generatedQuizHtml', htmlContent)
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('generatedQuizHtml', htmlContent)
+          }
 
           // 创建模拟题目数据用于预览
           const mockQuestions: ParsedQuestion[] = [
@@ -286,7 +443,7 @@ export function SmartParsingPage() {
 
   const downloadQuizHtml = () => {
     try {
-      const htmlContent = generatedHtml || localStorage.getItem('generatedQuizHtml')
+      const htmlContent = generatedHtml || (typeof window !== 'undefined' ? localStorage.getItem('generatedQuizHtml') : null)
 
       if (!htmlContent) {
         throw new Error('未找到生成的HTML内容')
@@ -334,7 +491,9 @@ export function SmartParsingPage() {
     setLoadingProgress(0)
     setLoadingMessage("")
     // 清理localStorage
-    localStorage.removeItem('generatedQuizHtml')
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('generatedQuizHtml')
+    }
   }
 
   const formatFileSize = (bytes: number) => {
@@ -349,6 +508,11 @@ export function SmartParsingPage() {
     if (currentStep > step) return <CheckCircle className="h-5 w-5 text-green-600" />
     if (currentStep === step) return <div className="h-5 w-5 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs">{step}</div>
     return <div className="h-5 w-5 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 text-xs">{step}</div>
+  }
+
+  // 防止hydration错误
+  if (!mounted) {
+    return null
   }
 
   return (

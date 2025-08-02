@@ -1,0 +1,231 @@
+好的，这是您要求的完整HTML刷题网页代码。
+
+我已经将您提供的两道题嵌入到了代码中，并实现了所有要求的功能。您只需将以下所有代码复制并保存为一个 `.html` 文件，然后用浏览器打开即可使用。
+
+### 功能亮点
+- **纯净单文件**: 无需任何外部依赖，只需一个HTML文件。
+- **现代UI**: 使用Tailwind CSS构建，界面美观、响应式。
+- **交互友好**: 点击选项后立刻显示对错，颜色反馈直观。
+- **轻松导航**: 底部提供清晰的“上一题”、“下一题”按钮和题号进度。
+- **移动端优先**: 在手机和电脑上都有良好的显示效果。
+
+---
+
+```html
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在线刷题</title>
+    <!-- 引入Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 自定义过渡效果，让颜色变化更平滑 */
+        .option-btn {
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* 正确答案的样式 - 强制覆盖Tailwind的hover效果 */
+        .correct-answer {
+            background-color: #10B981 !important; /* Tailwind green-500 */
+            border-color: #10B981 !important;
+            color: white !important;
+        }
+
+        /* 错误答案的样式 */
+        .wrong-answer {
+            background-color: #EF4444 !important; /* Tailwind red-500 */
+            border-color: #EF4444 !important;
+            color: white !important;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-auto p-6 md:p-8">
+        
+        <!-- 头部标题 -->
+        <header class="text-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">在线题库</h1>
+            <p class="text-sm text-gray-500 mt-1">即时反馈，高效学习</p>
+        </header>
+
+        <!-- 题目区域 -->
+        <main id="quiz-container">
+            <!-- 问题标题 -->
+            <div class="mb-5">
+                <h2 id="question-text" class="text-xl font-semibold text-gray-900 leading-relaxed"></h2>
+            </div>
+
+            <!-- 选项列表 -->
+            <div id="options-container" class="space-y-3">
+                <!-- 选项将由JavaScript动态生成 -->
+            </div>
+        </main>
+
+        <!-- 导航和进度条 -->
+        <footer class="mt-8 pt-6 border-t border-gray-200 flex items-center justify-between">
+            <button id="prev-btn" class="bg-gray-200 text-gray-700 font-semibold py-2 px-5 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                上一题
+            </button>
+            
+            <div id="question-counter" class="text-base font-medium text-gray-600"></div>
+
+            <button id="next-btn" class="bg-blue-500 text-white font-semibold py-2 px-5 rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                下一题
+            </button>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- 1. 数据定义 ---
+            // 在这里添加或修改你的题库
+            const quizData = [
+                {
+                    question: "JavaScript是什么类型的语言？",
+                    options: {
+                        "A": "编译型语言",
+                        "B": "解释型语言",
+                        "C": "汇编语言",
+                        "D": "机器语言"
+                    },
+                    answer: "B"
+                },
+                {
+                    question: "以下哪个不是JavaScript的数据类型？",
+                    options: {
+                        "A": "string",
+                        "B": "number",
+                        "C": "boolean",
+                        "D": "char"
+                    },
+                    answer: "D"
+                },
+                // 你可以在这里继续添加更多题目
+                // {
+                //     question: "你的第三个问题",
+                //     options: {
+                //         "A": "选项A",
+                //         "B": "选项B",
+                //         "C": "选项C",
+                //         "D": "选项D"
+                //     },
+                //     answer: "C"
+                // }
+            ];
+
+            // --- 2. 状态管理 ---
+            let currentQuestionIndex = 0;
+            let isAnswered = false;
+
+            // --- 3. DOM 元素获取 ---
+            const questionText = document.getElementById('question-text');
+            const optionsContainer = document.getElementById('options-container');
+            const questionCounter = document.getElementById('question-counter');
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+
+            // --- 4. 核心功能函数 ---
+
+            /**
+             * 加载并显示指定索引的题目
+             * @param {number} index - 题目在quizData数组中的索引
+             */
+            function loadQuestion(index) {
+                isAnswered = false;
+                const currentQuestion = quizData[index];
+
+                // 更新问题文本
+                questionText.textContent = `${index + 1}. ${currentQuestion.question}`;
+                
+                // 清空旧选项
+                optionsContainer.innerHTML = '';
+                
+                // 创建并显示新选项
+                for (const key in currentQuestion.options) {
+                    const optionButton = document.createElement('button');
+                    optionButton.className = 'option-btn block w-full text-left p-4 border border-gray-300 rounded-lg hover:bg-gray-100 hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300';
+                    optionButton.textContent = `${key}. ${currentQuestion.options[key]}`;
+                    optionButton.dataset.optionKey = key; // 存储选项键 (A, B, C, D)
+                    
+                    optionButton.addEventListener('click', handleOptionClick);
+                    optionsContainer.appendChild(optionButton);
+                }
+
+                updateNavigation();
+            }
+
+            /**
+             * 处理选项点击事件，判断对错并给出反馈
+             * @param {Event} event - 点击事件对象
+             */
+            function handleOptionClick(event) {
+                if (isAnswered) return; // 如果已回答，则不执行任何操作
+                isAnswered = true;
+
+                const selectedButton = event.currentTarget;
+                const selectedOptionKey = selectedButton.dataset.optionKey;
+                const correctAnswerKey = quizData[currentQuestionIndex].answer;
+                
+                const allOptionButtons = optionsContainer.querySelectorAll('button');
+                
+                allOptionButtons.forEach(button => {
+                    // 禁用所有按钮，防止重复点击
+                    button.disabled = true; 
+                    
+                    const optionKey = button.dataset.optionKey;
+                    
+                    // 标记正确答案
+                    if (optionKey === correctAnswerKey) {
+                        button.classList.add('correct-answer');
+                    }
+                    
+                    // 如果选错了，标记错误答案
+                    if (optionKey === selectedOptionKey && selectedOptionKey !== correctAnswerKey) {
+                        button.classList.add('wrong-answer');
+                    }
+                });
+            }
+
+            /**
+             * 更新导航按钮的状态和题号显示
+             */
+            function updateNavigation() {
+                // 更新题号
+                questionCounter.textContent = `第 ${currentQuestionIndex + 1} / ${quizData.length} 题`;
+
+                // 更新“上一题”按钮状态
+                prevBtn.disabled = currentQuestionIndex === 0;
+
+                // 更新“下一题”按钮状态
+                nextBtn.disabled = currentQuestionIndex === quizData.length - 1;
+            }
+
+            // --- 5. 事件监听器 ---
+            
+            // 下一题
+            nextBtn.addEventListener('click', () => {
+                if (currentQuestionIndex < quizData.length - 1) {
+                    currentQuestionIndex++;
+                    loadQuestion(currentQuestionIndex);
+                }
+            });
+
+            // 上一题
+            prevBtn.addEventListener('click', () => {
+                if (currentQuestionIndex > 0) {
+                    currentQuestionIndex--;
+                    loadQuestion(currentQuestionIndex);
+                }
+            });
+
+            // --- 6. 初始化 ---
+            loadQuestion(currentQuestionIndex);
+        });
+    </script>
+
+</body>
+</html>
+```

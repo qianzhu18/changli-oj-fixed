@@ -1,6 +1,4 @@
 import type { Metadata } from "next"
-import { GeistSans } from "geist/font/sans"
-import { ThemeProvider } from "@/components/theme-provider"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -15,17 +13,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="zh-CN" suppressHydrationWarning>
-      <body className={`${GeistSans.className} antialiased`} style={{
-        fontFamily: `${GeistSans.style.fontFamily}, "Times New Roman", Georgia, serif`
-      }}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem={false}
-          disableTransitionOnChange
-        >
-          {children}
-        </ThemeProvider>
+      <body className="antialiased font-sans" suppressHydrationWarning>
+        {children}
       </body>
     </html>
   )

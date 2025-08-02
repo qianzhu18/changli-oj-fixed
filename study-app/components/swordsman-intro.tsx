@@ -1,14 +1,35 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 interface SwordsmanIntroProps {
   onComplete: () => void
 }
 
 export function SwordsmanIntro({ onComplete }: SwordsmanIntroProps) {
+  const [mounted, setMounted] = useState(false)
   const [isClicked, setIsClicked] = useState(false)
   const [animationPhase, setAnimationPhase] = useState(0)
+
+  // 固定的随机值，避免hydration错误
+  const inkSplashes = [
+    { width: 4, height: 3, opacity: 0.4, left: 20, top: 30 },
+    { width: 6, height: 5, opacity: 0.6, left: 60, top: 10 },
+    { width: 3, height: 4, opacity: 0.3, left: 80, top: 70 },
+    { width: 5, height: 6, opacity: 0.5, left: 15, top: 80 },
+    { width: 4, height: 4, opacity: 0.4, left: 90, top: 40 },
+    { width: 7, height: 3, opacity: 0.7, left: 40, top: 60 },
+    { width: 3, height: 5, opacity: 0.3, left: 70, top: 20 },
+    { width: 6, height: 4, opacity: 0.6, left: 25, top: 50 },
+    { width: 4, height: 6, opacity: 0.4, left: 85, top: 15 },
+    { width: 5, height: 3, opacity: 0.5, left: 50, top: 85 },
+    { width: 3, height: 4, opacity: 0.3, left: 10, top: 65 },
+    { width: 6, height: 5, opacity: 0.6, left: 75, top: 45 }
+  ]
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const handleClick = () => {
     if (!isClicked) {
@@ -24,6 +45,11 @@ export function SwordsmanIntro({ onComplete }: SwordsmanIntroProps) {
       setTimeout(() => setAnimationPhase(7), 1200) // 完成切换
       setTimeout(onComplete, 1400)
     }
+  }
+
+  // 防止hydration错误
+  if (!mounted) {
+    return null
   }
 
   return (
@@ -136,19 +162,19 @@ export function SwordsmanIntro({ onComplete }: SwordsmanIntroProps) {
       </div>
 
       {/* 墨点飞溅效果 */}
-      {animationPhase >= 6 && (
+      {animationPhase >= 6 && mounted && (
         <div className="absolute inset-0 pointer-events-none">
-          {[...Array(12)].map((_, i) => (
+          {inkSplashes.map((splash, i) => (
             <div
               key={i}
               className="absolute rounded-full animate-ink-splash"
               style={{
-                width: `${Math.random() * 6 + 2}px`,
-                height: `${Math.random() * 6 + 2}px`,
+                width: `${splash.width}px`,
+                height: `${splash.height}px`,
                 backgroundColor: "#1A1A1A",
-                opacity: Math.random() * 0.6 + 0.2,
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
+                opacity: splash.opacity,
+                left: `${splash.left}%`,
+                top: `${splash.top}%`,
                 animationDelay: `${i * 0.05}s`,
                 animationDuration: "0.8s",
               }}
