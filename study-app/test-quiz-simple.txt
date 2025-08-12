@@ -1,0 +1,39 @@
+1. JavaScript是什么类型的编程语言？
+A. 编译型语言
+B. 解释型语言
+C. 汇编语言
+D. 机器语言
+答案：B
+解释：JavaScript是一种解释型编程语言，代码在运行时由JavaScript引擎逐行解释执行。
+
+2. 以下哪个不是JavaScript的数据类型？
+A. string
+B. number
+C. char
+D. boolean
+答案：C
+解释：JavaScript中没有char数据类型，字符通常用string类型表示。
+
+3. 如何在JavaScript中声明一个变量？
+A. var name
+B. variable name
+C. declare name
+D. dim name
+答案：A
+解释：在JavaScript中，可以使用var、let或const关键字来声明变量。
+
+4. 以下哪个方法可以向数组末尾添加元素？
+A. push()
+B. pop()
+C. shift()
+D. unshift()
+答案：A
+解释：push()方法用于向数组末尾添加一个或多个元素，并返回新的数组长度。
+
+5. JavaScript中的null和undefined有什么区别？
+A. 没有区别
+B. null表示空值，undefined表示未定义
+C. undefined表示空值，null表示未定义
+D. 都表示数字0
+答案：B
+解释：null表示一个空的对象引用，而undefined表示变量已声明但未赋值或对象属性不存在。

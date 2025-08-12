@@ -1,0 +1,71 @@
+JavaScript 基础知识题库
+
+1. JavaScript是什么类型的编程语言？
+A. 编译型语言
+B. 解释型语言
+C. 汇编语言
+D. 机器语言
+答案：B
+
+2. 以下哪个是JavaScript的正确变量声明方式？
+A. var name = "张三";
+B. variable name = "张三";
+C. string name = "张三";
+D. declare name = "张三";
+答案：A
+
+3. JavaScript中如何输出内容到控制台？
+A. print("Hello World");
+B. echo("Hello World");
+C. console.log("Hello World");
+D. output("Hello World");
+答案：C
+
+4. 以下哪个不是JavaScript的数据类型？
+A. string
+B. number
+C. boolean
+D. integer
+答案：D
+
+5. JavaScript中如何定义一个函数？
+A. function myFunction() {}
+B. def myFunction() {}
+C. func myFunction() {}
+D. method myFunction() {}
+答案：A
+
+6. 以下哪个方法可以将字符串转换为数字？
+A. parseInt()
+B. toString()
+C. valueOf()
+D. charAt()
+答案：A
+
+7. JavaScript中的null和undefined有什么区别？
+A. 没有区别，完全相同
+B. null表示空值，undefined表示未定义
+C. null是对象，undefined是基本类型
+D. 以上都不对
+答案：B
+
+8. 如何在JavaScript中创建数组？
+A. var arr = [];
+B. var arr = new Array();
+C. var arr = [1, 2, 3];
+D. 以上都可以
+答案：D
+
+9. JavaScript中的事件冒泡是什么？
+A. 事件从父元素传播到子元素
+B. 事件从子元素传播到父元素
+C. 事件在同级元素间传播
+D. 事件不会传播
+答案：B
+
+10. 以下哪个是正确的JavaScript注释语法？
+A. <!-- 这是注释 -->
+B. /* 这是注释 */
+C. // 这是注释
+D. B和C都正确
+答案：D

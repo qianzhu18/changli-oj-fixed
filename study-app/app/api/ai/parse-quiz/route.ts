@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       if (file) {
         content = await file.text()
       } else {
-        content = formData.get('content') as string || formData.get('fileContent') as string
+        content = (formData.get('content') as string) || (formData.get('fileContent') as string)
       }
 
       if (aiConfigStr) {
@@ -31,6 +31,9 @@ export async function POST(request: NextRequest) {
       } else {
         aiConfig = { apiKey: formData.get('apiKey') as string }
       }
+
+      // 读取出题顺序（支持 order 与 orderMode）
+      body = { orderMode: (formData.get('orderMode') as string) || (formData.get('order') as string) }
     } else {
       // 处理 JSON 请求
       body = await request.json()
@@ -70,6 +73,16 @@ export async function POST(request: NextRequest) {
     const aiService = AiService.getInstance()
     const startTime = Date.now()
 
+    // 强制两步流：若未提供出题顺序，则返回第一步提示
+    const chosenOrder = (body?.orderMode) || (body?.order) || '未选择'
+    if (chosenOrder !== '顺序' && chosenOrder !== '随机') {
+      return NextResponse.json({
+        success: false,
+        step: 'step1',
+        prompt: '您好！在为您生成刷题网页之前，请问您希望题目是按顺序出还是随机出？'
+      }, { status: 400 })
+    }
+
     const result = await aiService.generateQuizHtml(
       content,
       {
@@ -77,7 +90,7 @@ export async function POST(request: NextRequest) {
         apiKey: aiConfig.apiKey,
         model: aiConfig.model
       },
-      (body?.orderMode) || '顺序'
+      chosenOrder
     )
 
     const processingTime = Date.now() - startTime

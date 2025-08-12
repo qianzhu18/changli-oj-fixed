@@ -1,0 +1,1299 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>金句社媒卡片生成器</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #8b5cf6;
+            --primary-gradient: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+            --secondary-color: #10b981;
+            --text-primary: #1d1d1f;
+            --text-secondary: #86868b;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f5f5f7;
+            --border-color: #d2d2d7;
+            --shadow-light: 0 1px 3px rgba(0, 0, 0, 0.1);
+            --shadow-medium: 0 4px 6px rgba(0, 0, 0, 0.07);
+            --shadow-heavy: 0 25px 50px rgba(0, 0, 0, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        .apple-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 15px;
+        }
+
+        .apple-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-top: 20px;
+        }
+
+        .apple-title {
+            font-size: clamp(2rem, 5vw, 3rem);
+            font-weight: 700;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 15px;
+            letter-spacing: -0.02em;
+        }
+
+        .apple-subtitle {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+            font-weight: 400;
+        }
+
+        .apple-card {
+            background: var(--bg-primary);
+            border-radius: 18px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-medium);
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .apple-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-heavy);
+        }
+
+        .apple-form-group {
+            margin-bottom: 20px;
+        }
+
+        .apple-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+
+        .apple-input,
+        .apple-textarea,
+        .apple-select {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        .apple-input:focus,
+        .apple-textarea:focus,
+        .apple-select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .apple-textarea {
+            resize: vertical;
+            min-height: 120px;
+            font-family: inherit;
+        }
+
+        .apple-button {
+            background: var(--primary-gradient);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 14px 24px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-width: 140px;
+            position: relative;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        .apple-button:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-heavy);
+        }
+
+        .apple-button:active {
+            transform: translateY(0) scale(0.98);
+        }
+
+        .apple-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .apple-button.secondary {
+            background: var(--bg-primary);
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+        }
+
+        .apple-button.success {
+            background: linear-gradient(135deg, var(--secondary-color) 0%, #10b981 100%);
+        }
+
+        .loading-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .progress-container {
+            width: 100%;
+            height: 8px;
+            background: var(--border-color);
+            border-radius: 4px;
+            margin: 20px 0;
+            overflow: hidden;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .progress-container.show {
+            opacity: 1;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--primary-gradient);
+            width: 0%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .result-container {
+            background: var(--bg-primary);
+            border-radius: 18px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: var(--shadow-medium);
+            border: 1px solid var(--border-color);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.5s ease;
+        }
+
+        .result-container.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .markdown-content {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px 0;
+            border: 1px solid var(--border-color);
+            max-height: 600px;
+            overflow-y: auto;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .markdown-content h1 {
+            color: var(--primary-color);
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+
+        .markdown-content h2 {
+            color: var(--text-primary);
+            font-size: 1.4rem;
+            margin: 20px 0 15px 0;
+            font-weight: 600;
+        }
+
+        .markdown-content h3 {
+            color: var(--text-primary);
+            font-size: 1.2rem;
+            margin: 15px 0 10px 0;
+            font-weight: 600;
+        }
+
+        .markdown-content p {
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+
+        .markdown-content strong {
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .markdown-content em {
+            font-style: italic;
+        }
+
+        .markdown-content ul,
+        .markdown-content ol {
+            margin: 16px 0;
+            padding-left: 24px;
+        }
+
+        .markdown-content li {
+            margin-bottom: 8px;
+        }
+
+        .markdown-content blockquote {
+            border-left: 4px solid var(--primary-color);
+            margin: 16px 0;
+            padding-left: 16px;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .actions-container {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .config-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .config-modal.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-content {
+            background: var(--bg-primary);
+            border-radius: 18px;
+            width: 95%;
+            max-width: 500px;
+            padding: 25px;
+            box-shadow: var(--shadow-heavy);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .config-modal.show .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .close-button {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .close-button:hover {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .status-message {
+            padding: 14px 16px;
+            border-radius: 12px;
+            margin: 15px 0;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            font-weight: 500;
+        }
+
+        .status-message.success {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--secondary-color);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            display: flex;
+        }
+
+        .status-message.error {
+            background: rgba(255, 59, 48, 0.1);
+            color: #ff3b30;
+            border: 1px solid rgba(255, 59, 48, 0.3);
+            display: flex;
+        }
+
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .history-panel {
+            background: var(--bg-primary);
+            border-radius: 18px;
+            padding: 20px;
+            box-shadow: var(--shadow-medium);
+            border: 1px solid var(--border-color);
+            height: fit-content;
+            order: -1;
+        }
+
+        .history-item {
+            padding: 14px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .history-item:hover {
+            background: var(--bg-secondary);
+            border-color: var(--border-color);
+            transform: translateX(4px);
+        }
+
+        .history-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .history-date {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* Social Media Card Styles */
+        .social-card-container {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 15px auto;
+            width: 100%;
+            max-width: 100%;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e7eb;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .social-card-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: var(--primary-gradient);
+        }
+
+        .card-iframe {
+            width: 100%;
+            border: none;
+            background: white;
+            min-height: 200px;
+            max-height: 80vh;
+        }
+
+        .platform-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .platform-btn {
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+        }
+
+        .platform-btn.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        /* Mobile-specific styles */
+        @media (max-width: 768px) {
+            .apple-container {
+                padding: 12px;
+            }
+
+            .history-panel {
+                max-width: 98%;
+                overflow: hidden;
+            }
+
+            .apple-header {
+                margin-bottom: 20px;
+                padding-top: 10px;
+            }
+
+            .apple-card {
+                padding: 16px;
+            }
+
+            .apple-button {
+                padding: 12px 16px;
+                min-width: auto;
+                flex-grow: 1;
+            }
+
+            .actions-container {
+                gap: 8px;
+            }
+
+            .config-button {
+                padding: 10px !important;
+                width: 40px !important;
+                height: 40px !important;
+                min-width: auto !important;
+            }
+
+            .config-button span {
+                display: none;
+            }
+
+            .config-button i {
+                margin-right: 0 !important;
+            }
+
+            .modal-content {
+                padding: 20px;
+            }
+
+            .social-card-container {
+                padding: 10px;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .grid-layout {
+                grid-template-columns: 1fr 300px;
+            }
+
+            .history-panel {
+                order: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div class="apple-container">
+            <!-- Header -->
+            <header class="apple-header">
+                <h1 class="apple-title">金句社媒卡片生成器</h1>
+                <p class="apple-subtitle">将您的智慧金句转化为精美的社交媒体卡片,<a href="card_creator_2_sample.html"
+                        style="color:blue">效果例子</a></p>
+            </header>
+
+            <div class="grid-layout">
+                <!-- Main Content -->
+                <div class="main-content">
+                    <!-- Generator Form -->
+                    <div class="apple-card">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-bold text-gray-800">创建新卡片</h2>
+                            <button @click="showConfigModal = true" class="apple-button secondary config-button">
+                                <i class="fas fa-cog"></i>
+                                <span>配置</span>
+                            </button>
+                        </div>
+
+                        <form @submit.prevent="generateCard">
+                            <div class="actions-container" style="margin-bottom: 20px;">
+                                <button type="button" @click="autoFillContent" class="apple-button secondary">
+                                    <i class="fas fa-robot"></i>
+                                    随机金句
+                                </button>
+                            </div>
+
+                            <div class="apple-form-group">
+                                <label class="apple-label">金句内容（或者随机金句的种子）</label>
+                                <textarea v-model="formData.content" class="apple-textarea" placeholder="输入您的金句或名言..."
+                                    required></textarea>
+                            </div>
+
+                            <div class="apple-form-group">
+                                <label class="apple-label">作者/来源</label>
+                                <input v-model="formData.author" type="text" class="apple-input"
+                                    placeholder="例如：鲁迅、马云...">
+                            </div>
+
+                            <div class="apple-form-group">
+                                <label class="apple-label">主题标签</label>
+                                <input v-model="formData.tags" type="text" class="apple-input"
+                                    placeholder="例如：#人生哲理 #成功学 #励志...">
+                            </div>
+
+                            <div class="apple-form-group">
+                                <label class="apple-label">AI模型</label>
+                                <select v-model="formData.model" class="apple-select">
+                                    <option value="gemini-2.5-pro-preview-06-05">Gemini Pro 2.5</option>
+                                    <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                                    <option value="claude-4-sonnet">Claude 4 Sonnet</option>
+                                    <option value="gemini-pro">Gemini Pro</option>
+                                    <option value="qwen-max">Qwen Max</option>
+                                    <option value="glm-4">GLM-4</option>
+                                </select>
+                            </div>
+
+                            <div class="apple-form-group">
+                                <label class="apple-label">自定义提示词 (可选)</label>
+                                <textarea v-model="formData.customPrompt" class="apple-textarea"
+                                    placeholder="如需特定风格或要求，请在此输入..."></textarea>
+                            </div>
+
+                            <div class="actions-container">
+                                <button type="submit" class="apple-button" :disabled="isGenerating">
+                                    <span v-if="!isGenerating">
+                                        <i class="fas fa-magic"></i>
+                                        生成卡片
+                                    </span>
+                                    <span v-else class="loading-spinner"></span>
+                                </button>
+                            </div>
+
+                            <div class="progress-container" :class="{ show: isGenerating }">
+                                <div class="progress-bar" :style="{ width: progress + '%' }"></div>
+                            </div>
+                        </form>
+
+                        <div v-if="statusMessage" class="status-message" :class="statusType">
+                            <i :class="statusIcon"></i>
+                            {{ statusMessage }}
+                        </div>
+                    </div>
+
+                    <!-- Result Display -->
+                    <div v-if="generatedHtml" class="result-container show">
+                        <h2 class="text-xl font-bold text-gray-800 mb-4">生成的金句卡片</h2>
+
+                        <div class="platform-selector">
+                            <button v-for="platform in platforms" :key="platform.id"
+                                @click="activePlatform = platform.id" class="platform-btn"
+                                :class="{ active: activePlatform === platform.id }">
+                                <i :class="platform.icon"></i>
+                                {{ platform.name }}
+                            </button>
+                        </div>
+
+                        <div class="social-card-container">
+                            <iframe class="card-iframe" :srcdoc="generatedHtml" @load="adjustIframeHeight"></iframe>
+                        </div>
+
+                        <div class="actions-container">
+                            <button @click="copyToClipboard" class="apple-button secondary" :disabled="isCopying">
+                                <span v-if="!isCopying">
+                                    <i class="fas fa-copy"></i>
+                                    复制HTML
+                                </span>
+                                <span v-else class="loading-spinner"></span>
+                            </button>
+                            <button @click="previewInNewWindow" class="apple-button secondary">
+                                <i class="fas fa-eye"></i>
+                                预览
+                            </button>
+                            <button @click="downloadHTML" class="apple-button secondary">
+                                <i class="fas fa-download"></i>
+                                下载HTML
+                            </button>
+                            <button @click="regenerateCard" class="apple-button" :disabled="isGenerating">
+                                <i class="fas fa-redo"></i>
+                                重新生成
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- History Panel -->
+                <div class="history-panel">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">生成历史</h3>
+                    <div v-if="history.length === 0" class="text-gray-500 text-center py-8">
+                        暂无历史记录
+                    </div>
+                    <div v-else>
+                        <div v-for="item in history" :key="item.id" @click="loadHistoryItem(item)" class="history-item">
+                            <div class="history-title">{{ item.content.substring(0, 30) }}{{ item.content.length > 30 ?
+                                '...' : '' }}</div>
+                            <div class="history-date">{{ formatDate(item.timestamp) }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Config Modal -->
+        <div class="config-modal" :class="{ show: showConfigModal }">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title">API配置</h3>
+                    <button @click="showConfigModal = false" class="close-button">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <div class="apple-form-group">
+                    <label class="apple-label">API密钥</label>
+                    <input v-model="config.apiKey" type="password" class="apple-input" placeholder="输入您的API密钥">
+                </div>
+
+                <div class="apple-form-group">
+                    <label class="apple-label">API基础URL</label>
+                    <input v-model="config.baseUrl" type="text" class="apple-input"
+                        placeholder="https://twoapi-ui.qiangtu.com/v1">
+                </div>
+
+                <div class="flex gap-4 mt-6">
+                    <button @click="showConfigModal = false" class="apple-button secondary flex-1">
+                        取消
+                    </button>
+                    <button @click="saveConfig" class="apple-button flex-1">
+                        保存配置
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    formData: {
+                        content: '',
+                        author: '',
+                        tags: '',
+                        model: 'gemini-2.5-pro-preview-06-05',
+                        customPrompt: ''
+                    },
+                    config: {
+                        apiKey: 'sk-1e49426A5A63Ee3C33256F17EF152C02',
+                        baseUrl: 'https://twoapi-ui.qiangtu.com/v1'
+                    },
+                    generatedHtml: '',
+                    isGenerating: false,
+                    isCopying: false,
+                    progress: 0,
+                    statusMessage: '',
+                    statusType: '',
+                    showConfigModal: false,
+                    history: [],
+                    activePlatform: 'twitter',
+                    platforms: [
+                        { id: 'twitter', name: 'Twitter', icon: 'fab fa-twitter' },
+                        { id: 'instagram', name: 'Instagram', icon: 'fab fa-instagram' },
+                        { id: 'weibo', name: '微博', icon: 'fab fa-weibo' },
+                        { id: 'linkedin', name: 'LinkedIn', icon: 'fab fa-linkedin' }
+                    ],
+                    platformStyles: {
+                        twitter: {
+                            '--primary-color': '#1DA1F2',
+                            '--primary-gradient': 'linear-gradient(135deg, #1DA1F2 0%, #1d8ce2 100%)'
+                        },
+                        instagram: {
+                            '--primary-color': '#E1306C',
+                            '--primary-gradient': 'linear-gradient(135deg, #E1306C 0%, #833AB4 50%, #405DE6 100%)'
+                        },
+                        weibo: {
+                            '--primary-color': '#E6162D',
+                            '--primary-gradient': 'linear-gradient(135deg, #E6162D 0%, #d62d2d 100%)'
+                        },
+                        linkedin: {
+                            '--primary-color': '#0077B5',
+                            '--primary-gradient': 'linear-gradient(135deg, #0077B5 0%, #00A0DC 100%)'
+                        }
+                    },
+                    progressInterval: null,
+                    timeoutId: null
+                }
+            },
+            computed: {
+                statusIcon() {
+                    return this.statusType === 'success' ? 'fas fa-check-circle' : 'fas fa-exclamation-triangle';
+                }
+            },
+            mounted() {
+                this.loadConfig();
+                this.loadHistory();
+            },
+            methods: {
+                async generateCard() {
+                    if (!this.formData.content.trim()) {
+                        this.showStatus('请输入金句内容', 'error');
+                        return;
+                    }
+
+                    if (!this.config.apiKey) {
+                        this.showStatus('请先配置API密钥', 'error');
+                        this.showConfigModal = true;
+                        return;
+                    }
+
+                    this.isGenerating = true;
+                    this.progress = 0;
+                    this.statusMessage = '';
+                    this.generatedHtml = '';
+                    this.startProgressTimer();
+                    this.startTimeout();
+
+                    try {
+                        const systemPrompt = this.buildSystemPrompt();
+                        const userMessage = this.formData.content;
+
+                        const fullContent = await this.callAPI(systemPrompt, userMessage);
+                        const htmlContent = this.extractHtmlFromResponse(fullContent);
+
+                        if (!htmlContent) {
+                            throw new Error('未能从响应中提取有效的HTML内容');
+                        }
+
+                        this.generatedHtml = htmlContent;
+                        this.addToHistory(this.formData.content, htmlContent);
+                        this.showStatus('卡片生成成功！', 'success');
+                        window.scrollBy(0, 100);
+                    } catch (error) {
+                        console.error('生成失败:', error);
+                        this.showStatus(`生成失败: ${error.message}`, 'error');
+                    } finally {
+                        this.clearTimeout();
+                        this.isGenerating = false;
+                        this.progress = 100;
+                        setTimeout(() => {
+                            this.progress = 0;
+                        }, 1000);
+                    }
+                },
+
+                startProgressTimer() {
+                    this.clearProgress();
+                    const startTime = Date.now();
+                    const duration = 6 * 60 * 1000; // 6 minutes in milliseconds
+
+                    this.progressInterval = setInterval(() => {
+                        const elapsed = Date.now() - startTime;
+                        this.progress = Math.min(99, (elapsed / duration) * 100);
+                    }, 1000);
+                },
+
+                startTimeout() {
+                    this.clearTimeout();
+                    this.timeoutId = setTimeout(() => {
+                        if (this.isGenerating) {
+                            this.isGenerating = false;
+                            this.showStatus('请求超时，请重试', 'error');
+                            this.clearProgress();
+                        }
+                    }, 6 * 60 * 1000); // 6 minutes
+                },
+
+                clearTimeout() {
+                    if (this.timeoutId) {
+                        clearTimeout(this.timeoutId);
+                        this.timeoutId = null;
+                    }
+                },
+
+                clearProgress() {
+                    if (this.progressInterval) {
+                        clearInterval(this.progressInterval);
+                        this.progressInterval = null;
+                    }
+                },
+
+                buildSystemPrompt() {
+                    const basePrompt = `# 金句社媒卡片
+
+角色：内容策展人&视觉设计师
+
+你是一名专业的内容策展人和视觉设计师，擅长从复杂文本中提炼精华并创建视觉冲击力强的知识卡片。
+
+## 任务
+
+从我提供的内容中，提取20个金句，并为每个金句设计2种不同风格的知识卡片，适合社交媒体、自媒体平台和在线学习内容。
+
+### 第一步：内容分析与提炼
+
+- 识别最有价值、最具洞见的20个金句
+- 每个金句应代表核心思想，表达简练有力，具有启发性
+- 优先选择那些能引发思考、有深度、有独特视角的句子
+
+### 第二步：知识卡片设计
+
+- 为每个金句创建2个不同风格的设计版本：
+- 两个宽屏版本（比例2.35:1），应并排放置
+- 每个卡片最大高度为383px
+- 确保每个金句的设计版本使用完全不同的设计风格，包括：
+- 不同的色彩方案与背景处理
+- 不同的字体选择与排版方式
+- 不同的装饰元素与视觉强调手法
+- 不同的整体设计风格
+
+### 色彩与背景要求
+
+- 使用广泛的色彩范围：从明亮活泼的蓝色、黄色、薄荷绿到柔和的米色、灰色
+- 多样化背景处理：纯色背景、渐变效果、纸张质感、网格纹理、水彩效果
+- 灵活的对比度策略：高对比度设计（蓝底黄字、红字白底）和柔和低对比设计
+- 添加质感元素：水彩、纸张褶皱、噪点、纹理等增强视觉层次
+- 确保文字与背景有足够对比度，避免白底白字等可读性问题
+
+### 字体与排版要求
+
+- 字体多样性：黑体为主，辅以手写风格、描边效果和变形字体
+- 合理的字体大小占比：标题文字通常占据画面40-80%的空间
+- 灵活的排版方式：居中、左对齐、自由布局、不规则排列
+- 多样的强调手法：使用描边、高亮、圆圈标记、下划线等方式强调关键词
+- 丰富的色彩运用：黑色主导，但也使用红色、黄色等鲜艳彩色文字设计
+
+### 装饰与互动元素要求
+
+- 丰富的图标与表情：卡通表情、简笔画、主题相关图标等
+- 多样的手绘元素：箭头、圆圈、不规则线条、涂鸦风格边框
+- 创意的标签与徽章：类似"核心观点"等小标签增添层次
+- 模拟的互动提示：编辑、下载按钮等元素，增强交互感
+
+### 设计风格多元化（至少包含以下10种风格）：
+
+1. 极简主义：纯色背景配大字，减少视觉干扰
+2. 手绘风格：不规则线条、手写质感，增添亲和力
+3. 纸质模拟：纸张纹理、折痕、卷边效果，增强实体感
+4. 数字界面风：融入UI元素，如按钮、状态栏、编辑界面
+5. 涂鸦标记：使用荧光笔效果、圆圈标记等强调重点
+6. 渐变艺术：使用现代感渐变色彩创造层次感
+7. 几何图形：利用简洁几何形状构建视觉框架
+8. 复古风格：模拟老照片、老海报质感
+9. 霓虹风格：明亮的霓虹灯效果与暗色背景
+10. 信息图表风：将文字与简洁图表元素结合
+
+### 整体设计原则
+
+- 保持信息清晰度为首要原则，确保文字易读
+- 视觉层次分明，主标题永远是视觉焦点
+- 装饰元素服务于主题，不喧宾夺主
+- 设计风格年轻化、互联网化，适合数字媒体传播
+- 整体感觉轻松友好，避免过于严肃或复杂
+- 提供基于手机呈现的显示效果优化，保障在手机上查看时的阅读体验
+
+## 输出要求
+
+- 提供一个完整HTML文件，包含所有卡片，网页左右有合理的Padding
+- 使用HTML5、Tailwind CSS、Font Awesome和必要的JavaScript
+- 卡片应按金句分组展示，每组包含该金句的2个不同设计版本
+- 代码应优雅且符合最佳实践，CSS应体现对细节的极致追求
+- 避免出现超出卡片范围的元素，便于复制和印刷，也不需要任何动效
+- 确保所有文字与背景有足够对比度，**保证可读性**
+
+请确保每个金句的设计版本风格各不相同。
+
+待处理内容：
+
+{{this.formData.content}}`;
+
+                    return this.formData.customPrompt ?
+                        `${basePrompt}\n\n自定义要求：${this.formData.customPrompt}` :
+                        basePrompt;
+                },
+
+                async callAPI(systemPrompt, userMessage) {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 300000);
+
+                    try {
+                        const response = await fetch(`${this.config.baseUrl}/chat/completions`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${this.config.apiKey}`
+                            },
+                            body: JSON.stringify({
+                                model: this.formData.model,
+                                stream: true,
+                                messages: [
+                                    { role: 'system', content: systemPrompt },
+                                    { role: 'user', content: userMessage }
+                                ],
+                                temperature: 0.7
+                            }),
+                            signal: controller.signal
+                        });
+
+                        if (!response.ok) {
+                            throw new Error('API请求失败');
+                        }
+
+                        const reader = response.body.getReader();
+                        const decoder = new TextDecoder();
+                        let fullContent = '';
+
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+
+                            const chunk = decoder.decode(value, { stream: true });
+                            const lines = chunk.split('\n');
+
+                            for (const line of lines) {
+                                if (line.startsWith('data: ')) {
+                                    const dataStr = line.slice(6).trim();
+                                    if (dataStr === '[DONE]') break;
+
+                                    try {
+                                        const data = JSON.parse(dataStr);
+                                        if (data.choices[0].delta?.content) {
+                                            fullContent += data.choices[0].delta.content;
+                                        }
+                                    } catch (e) {
+                                        // 忽略解析错误
+                                    }
+                                }
+                            }
+                        }
+
+                        clearTimeout(timeoutId);
+                        return fullContent;
+
+                    } catch (error) {
+                        clearTimeout(timeoutId);
+                        throw error;
+                    }
+                },
+
+                extractHtmlFromResponse(content) {
+                    // 首先解码转义字符
+                    let decodedContent = content
+                        .replace(/\\u003c/g, '<')
+                        .replace(/\\u003e/g, '>')
+                        .replace(/\\"/g, '"')
+                        .replace(/\\n/g, '\n')
+                        .replace(/\\t/g, '\t')
+                        .replace(/\\r/g, '\r')
+                        .replace(/\\\\/g, '\\');
+
+                    // 尝试提取代码块中的HTML
+                    const codeBlockRegex = /```html\n([\s\S]*?)\n```/;
+                    const match = decodedContent.match(codeBlockRegex);
+
+                    if (match && match[1]) {
+                        return match[1];
+                    }
+
+                    // 尝试提取没有语言标识的代码块
+                    const generalCodeBlockRegex = /```\n([\s\S]*?)\n```/;
+                    const generalMatch = decodedContent.match(generalCodeBlockRegex);
+
+                    if (generalMatch && generalMatch[1] &&
+                        (generalMatch[1].trim().startsWith('<!DOCTYPE html') || generalMatch[1].trim().startsWith('<html'))) {
+                        return generalMatch[1];
+                    }
+
+                    // 如果没有代码块，尝试查找HTML标签
+                    const htmlTagRegex = /<html[\s\S]*<\/html>/i;
+                    const htmlMatch = decodedContent.match(htmlTagRegex);
+
+                    if (htmlMatch) {
+                        return htmlMatch[0];
+                    }
+
+                    // 检查是否直接以HTML开头
+                    const trimmedContent = decodedContent.trim();
+                    if (trimmedContent.startsWith('<!DOCTYPE html') || trimmedContent.startsWith('<html')) {
+                        return trimmedContent;
+                    }
+
+                    // 如果都没有，返回原始内容
+                    return decodedContent;
+                },
+
+                adjustIframeHeight(event) {
+                    const iframe = event.target;
+                    try {
+                        const doc = iframe.contentDocument || iframe.contentWindow.document;
+                        if (doc.body) {
+                            iframe.style.height = doc.body.scrollHeight + 'px';
+                        }
+                    } catch (e) {
+                        console.error('无法调整iframe高度:', e);
+                    }
+                },
+
+                async autoFillContent() {
+                    if (!this.config.apiKey) {
+                        this.showStatus('请先配置API密钥', 'error');
+                        this.showConfigModal = true;
+                        return;
+                    }
+
+                    this.isGenerating = true;
+                    this.progress = 0;
+                    this.statusMessage = '';
+                    this.startProgressTimer();
+                    this.startTimeout();
+
+                    try {
+                        const systemPrompt = `你是一个内容生成助手，请根据用户可能的主题生成一个包含金句内容、作者和标签的JSON对象。格式如下：
+    {
+        "content": "金句内容",
+        "author": "作者",
+        "tags": "标签1 #标签2"
+    }
+    
+    请生成一个关于爱情、人生哲理、成功学或励志主题的金句。`;
+
+                        const response = await fetch(`${this.config.baseUrl}/chat/completions`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${this.config.apiKey}`
+                            },
+                            body: JSON.stringify({
+                                model: "gpt-4o-mini",
+                                messages: [
+                                    { role: 'system', content: systemPrompt },
+                                    { role: 'user', content: this.formData.content.trim() == '' ? '请随机创作金句' : '请基于' + this.formData.content.trim() + '生成一个金句' }
+                                ],
+                                temperature: 0.7,
+                                response_format: { type: "json_object" }
+                            })
+                        });
+
+                        if (!response.ok) {
+                            throw new Error('API请求失败');
+                        }
+
+                        const data = await response.json();
+                        const content = data.choices[0].message.content;
+
+                        // 提取JSON内容
+                        const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/);
+                        let result;
+
+                        if (jsonMatch && jsonMatch[1]) {
+                            try {
+                                result = JSON.parse(jsonMatch[1]);
+                            } catch (parseError) {
+                                console.error('JSON解析失败:', parseError);
+                                this.showStatus('JSON解析失败，请检查AI返回格式', 'error');
+                                return;
+                            }
+                        } else {
+                            try {
+                                result = JSON.parse(content);
+                            } catch (parseError) {
+                                console.error('无法解析AI返回内容:', parseError);
+                                this.showStatus('无法解析AI返回内容，请检查返回格式', 'error');
+                                return;
+                            }
+                        }
+
+                        this.formData.content = result.content || '';
+                        this.formData.author = result.author || '';
+                        this.formData.tags = result.tags || '';
+
+                        this.showStatus('内容已自动填充', 'success');
+
+                    } catch (error) {
+                        console.error('自动填充失败:', error);
+                        this.showStatus(`自动填充失败: ${error.message}`, 'error');
+                    } finally {
+                        this.clearTimeout();
+                        this.isGenerating = false;
+                        this.progress = 100;
+                        setTimeout(() => {
+                            this.progress = 0;
+                        }, 1000);
+                    }
+                },
+
+                async copyToClipboard() {
+                    if (!this.generatedHtml) return;
+
+                    this.isCopying = true;
+                    try {
+                        await navigator.clipboard.writeText(this.generatedHtml);
+                        this.showStatus('HTML内容已复制到剪贴板', 'success');
+                    } catch (error) {
+                        this.showStatus('复制失败', 'error');
+                    } finally {
+                        setTimeout(() => {
+                            this.isCopying = false;
+                        }, 1000);
+                    }
+                },
+
+                previewInNewWindow() {
+                    if (!this.generatedHtml) return;
+
+                    const blob = new Blob([this.generatedHtml], { type: 'text/html' });
+                    window.open(URL.createObjectURL(blob), '_blank');
+                },
+
+                downloadHTML() {
+                    if (!this.generatedHtml) return;
+
+                    const blob = new Blob([this.generatedHtml], { type: 'text/html' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = '金句卡片.html';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    this.showStatus('HTML文件已下载', 'success');
+                },
+
+                regenerateCard() {
+                    this.generateCard();
+                },
+
+                showStatus(message, type) {
+                    this.statusMessage = message;
+                    this.statusType = type;
+                    setTimeout(() => {
+                        this.statusMessage = '';
+                    }, 5000);
+                },
+
+                saveConfig() {
+                    localStorage.setItem('golden-sentence-config', JSON.stringify(this.config));
+                    this.showConfigModal = false;
+                    this.showStatus('配置保存成功', 'success');
+                },
+
+                loadConfig() {
+                    const savedConfig = localStorage.getItem('golden-sentence-config');
+                    if (savedConfig) {
+                        this.config = { ...this.config, ...JSON.parse(savedConfig) };
+                    }
+                },
+
+                addToHistory(content, html) {
+                    const historyItem = {
+                        id: Date.now(),
+                        content,
+                        html,
+                        model: this.formData.model,
+                        customPrompt: this.formData.customPrompt,
+                        timestamp: new Date().toISOString()
+                    };
+
+                    this.history.unshift(historyItem);
+                    if (this.history.length > 10) {
+                        this.history.pop();
+                    }
+
+                    localStorage.setItem('golden-sentence-history', JSON.stringify(this.history));
+                },
+
+                loadHistory() {
+                    const savedHistory = localStorage.getItem('golden-sentence-history');
+                    if (savedHistory) {
+                        this.history = JSON.parse(savedHistory);
+                    }
+                },
+
+                loadHistoryItem(item) {
+                    this.formData.content = item.content;
+                    this.formData.model = item.model;
+                    this.formData.customPrompt = item.customPrompt;
+                    this.generatedHtml = item.html;
+                },
+
+                formatDate(timestamp) {
+                    return new Date(timestamp).toLocaleString('zh-CN');
+                }
+            }
+        }).mount('#app');
+    </script>
+    <script src="https://twoapi-ui.qiangtu.com/scripts/content.js"></script>
+</body>
+
+</html>

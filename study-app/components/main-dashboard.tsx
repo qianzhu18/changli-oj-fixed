@@ -4,8 +4,8 @@ import { useState, useEffect } from "react"
 import { Header } from "@/components/header"
 import { LeftSidebar } from "@/components/left-sidebar"
 import { RightContent } from "@/components/right-content"
-import { SmartParsingPage } from "@/components/smart-parsing-page"
-import { QuizLibrary } from "@/components/quiz-library"
+import { SmartParsingPageSimple } from "@/components/smart-parsing-page"
+// import { QuizLibrary } from "@/components/quiz-library"
 import { QuizPreview } from "@/components/quiz-preview"
 
 import { ProfileDialog } from "@/components/profile-dialog"
@@ -177,7 +177,7 @@ export function MainDashboard({ onLogout, userEmail = "user@example.com" }: Main
           userEmail={userEmail}
         />
 
-        <SmartParsingPage />
+        <SmartParsingPageSimple />
 
 
         <ProfileDialog
@@ -213,10 +213,16 @@ export function MainDashboard({ onLogout, userEmail = "user@example.com" }: Main
               onClose={handleClosePreview}
             />
           ) : (
-            <QuizLibrary
-              onCreateNew={handleCreateNewQuiz}
-              onPreview={handlePreviewQuiz}
-            />
+            <div className="p-8 text-center">
+              <h2 className="text-2xl font-bold mb-4">题库管理</h2>
+              <p className="text-gray-600 mb-6">题库管理功能正在开发中...</p>
+              <button
+                onClick={handleCreateNewQuiz}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                创建新题库
+              </button>
+            </div>
           )}
         </div>
 

@@ -220,18 +220,31 @@ export class GeminiProvider implements IAiProvider {
   }
 
   private buildPrompt(options: QuizGenerationOptions): string {
-    return `创建一个单文件HTML刷题网页。要求：
+    const rules = `
+- 严格执行两步交互：只有在用户已选择“顺序/随机”后才生成HTML（本次已选择：${options.orderMode}）
+- 随机模式：先一次性打乱题库，之后所有编号、上一题/下一题、底部题号栏严格按该随机序列
+- 题目类型：自动判断。选择题显示选项按钮；填空题显示输入框+“提交答案”按钮
+- 反馈：
+  - 选择题：点击后即时反馈；正确项绿色；所选错误项红色；该题选项锁定
+  - 填空题：提交后严格完全匹配；对→输入框边框绿；错→边框红，并显示“正确答案：{标准答案}”；锁定输入
+- 状态：在页面内存中持久（切换题目返回后仍保留已答）
+- 导航：上一题/下一题 + 底部可横向滚动题号栏（当前题蓝、答对绿、答错红）
+- 完成页：展示“答对/总数（正确率%）”，提供“重新开始”
+- 技术：单HTML（内含HTML/CSS/JS），Tailwind CSS，移动端优先，禁止动画
+- 解析规则：题干后紧随四个选项为一题；或题干+一个答案为一题；正确选项行首带“。”；不要显示 A/B/C/D 标签，按文档顺序展示
+`;
 
-1. 题目顺序：${options.orderMode}
-2. 功能：一次显示一题，选择/填空后立即反馈，答对绿色答错红色，锁定不可改
-3. 导航：上下题按钮+底部题号栏，当前题蓝色已答题显示颜色
-4. 完成：显示得分和正确率，可重新开始
-5. 技术：单HTML文件，Tailwind CSS，响应式
+    return `请根据以下“内容与规则”生成一个单文件HTML刷题网页：
 
-题库内容：
+【出题顺序】${options.orderMode}
+
+【内容】
 ${options.content}
 
-请生成完整HTML：`;
+【规则】
+${rules}
+
+输出：直接给出完整且可运行的HTML（包含<head>与<body>）。`;
   }
 
   private extractQuestionCount(html: string): number {

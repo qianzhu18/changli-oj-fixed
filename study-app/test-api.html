@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API测试</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-8">
+    <div class="max-w-2xl mx-auto">
+        <h1 class="text-3xl font-bold mb-8">API调用测试</h1>
+        
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">测试AI API</h2>
+            <textarea id="test-content" class="w-full h-32 p-4 border rounded-lg mb-4" placeholder="输入测试内容...">JavaScript基础知识测试题库
+
+1. JavaScript是什么类型的编程语言？
+A. 编译型语言
+B. 解释型语言
+C. 汇编语言
+D. 机器语言
+答案：B</textarea>
+            
+            <button onclick="testAPI()" class="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                测试API调用
+            </button>
+            
+            <div id="result" class="mt-6 p-4 bg-gray-50 rounded-lg hidden">
+                <h3 class="font-semibold mb-2">结果：</h3>
+                <div id="result-content"></div>
+            </div>
+            
+            <div id="error" class="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg hidden">
+                <h3 class="font-semibold text-red-800 mb-2">错误：</h3>
+                <div id="error-content" class="text-red-600"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const AI_CONFIG = {
+            apiKey: 'sk-1e49426A5A63Ee3C33256F17EF152C02',
+            baseUrl: 'https://twoapi-ui.qiangtu.com/v1'
+        };
+
+        async function testAPI() {
+            const content = document.getElementById('test-content').value;
+            const resultDiv = document.getElementById('result');
+            const errorDiv = document.getElementById('error');
+            const resultContent = document.getElementById('result-content');
+            const errorContent = document.getElementById('error-content');
+
+            // 隐藏之前的结果
+            resultDiv.classList.add('hidden');
+            errorDiv.classList.add('hidden');
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 300000);
+
+            try {
+                console.log('开始API调用...');
+
+                const systemPrompt = `你是一个专业的题库转换系统。根据用户上传的题库文件，创建一个功能完善、用于刷题的前端网页，需打包在单个HTML文件中。
+
+请直接输出完整的HTML代码，包含：
+- DOCTYPE html声明
+- 完整的head部分（meta标签、Tailwind CSS引入）
+- 完整的body部分和JavaScript逻辑
+- 确保可以直接保存为.html文件并在浏览器中运行
+
+待处理的题库内容：`;
+
+                const response = await fetch(`${AI_CONFIG.baseUrl}/chat/completions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${AI_CONFIG.apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: 'gemini-2.5-pro-preview-06-05',
+                        stream: true,
+                        messages: [
+                            { role: 'system', content: systemPrompt },
+                            { role: 'user', content: content }
+                        ],
+                        temperature: 0.7
+                    }),
+                    signal: controller.signal
+                });
+
+                console.log('API响应状态:', response.status);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API错误响应:', errorText);
+                    throw new Error(`API请求失败: ${response.status} ${response.statusText}`);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullContent = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const dataStr = line.slice(6).trim();
+                            if (dataStr === '[DONE]') break;
+
+                            try {
+                                const data = JSON.parse(dataStr);
+                                if (data.choices[0].delta?.content) {
+                                    fullContent += data.choices[0].delta.content;
+                                }
+                            } catch (e) {
+                                // 忽略解析错误
+                            }
+                        }
+                    }
+                }
+
+                clearTimeout(timeoutId);
+                console.log('AI返回内容长度:', fullContent.length);
+
+                if (fullContent.trim()) {
+                    resultContent.innerHTML = `<pre class="whitespace-pre-wrap text-sm">${fullContent.substring(0, 2000)}...</pre>`;
+                    resultDiv.classList.remove('hidden');
+                } else {
+                    throw new Error('AI返回内容为空');
+                }
+
+            } catch (error) {
+                clearTimeout(timeoutId);
+                console.error('API调用错误:', error);
+                errorContent.textContent = error.message;
+                errorDiv.classList.remove('hidden');
+            }
+        }
+    </script>
+</body>
+</html>

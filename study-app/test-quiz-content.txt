@@ -1,0 +1,60 @@
+JavaScript基础知识测试
+
+1. JavaScript是什么类型的编程语言？
+A. 编译型语言
+B. 解释型语言
+C. 汇编语言
+D. 机器语言
+答案：B
+
+2. 下列哪个不是JavaScript的数据类型？
+A. string
+B. number
+C. char
+D. boolean
+答案：C
+
+3. 如何声明一个JavaScript变量？
+A. var myVar;
+B. variable myVar;
+C. v myVar;
+D. declare myVar;
+答案：A
+
+4. JavaScript中的null和undefined有什么区别？
+请简述null和undefined的区别。
+答案：null是一个表示"无"的对象，undefined表示"缺少值"，即此处应该有一个值但还没有定义。
+
+5. 什么是JavaScript闭包？
+A. 一种循环结构
+B. 一种条件语句
+C. 函数和其词法环境的组合
+D. 一种数据类型
+答案：C
+
+6. 请写出创建数组的两种方法。
+答案：var arr1 = []; var arr2 = new Array();
+
+7. JavaScript中如何检查一个变量是否为数组？
+A. typeof variable === 'array'
+B. Array.isArray(variable)
+C. variable instanceof Object
+D. variable.constructor === Array
+答案：B
+
+8. 什么是事件冒泡？
+答案：事件冒泡是指事件从最具体的元素开始触发，然后向上传播到较为不具体的元素。
+
+9. 下列哪个方法可以阻止事件的默认行为？
+A. stopPropagation()
+B. preventDefault()
+C. stopDefault()
+D. cancelEvent()
+答案：B
+
+10. JavaScript中的this关键字指向什么？
+A. 总是指向全局对象
+B. 总是指向函数本身
+C. 取决于函数的调用方式
+D. 总是指向undefined
+答案：C

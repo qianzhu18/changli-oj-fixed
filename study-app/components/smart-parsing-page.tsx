@@ -2,304 +2,283 @@
 
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { QuizPreview } from "@/components/quiz-preview"
+import { FileParser } from "@/lib/file-parser"
+import { QuizParser, type ParsedQuestion, type QuizData } from "@/lib/quiz-parser"
+import { QuizHtmlGenerator } from "@/lib/quiz-html-generator"
+import { BatchProcessingInterface } from "./batch-processing-interface"
 import {
-  Upload,
-  FileText,
-  File,
-  AlertCircle,
-  CheckCircle,
-  Brain,
-  Key,
-  FileSpreadsheet,
-  FileType,
-  Download,
-  Sparkles,
-  ArrowRight,
-  Clock,
-  Target,
-  X,
-  Eye
+  Upload, FileText, Brain, CheckCircle, AlertCircle,
+  X, Clock, Sparkles, Target, ArrowRight,
+  FileType, RotateCcw, Zap
 } from "lucide-react"
 
-interface ParsedQuestion {
-  id: string
-  question: string
-  answer: string
-  type: "multiple-choice" | "fill-in-blank"
-  options?: string[]
-}
-
-export function SmartParsingPage() {
+export function SmartParsingPageSimple() {
+  // 基础状态
   const [mounted, setMounted] = useState(false)
-  const [content, setContent] = useState("")
+  const [currentStep, setCurrentStep] = useState(1)
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const [content, setContent] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1)
-  const [userChoice, setUserChoice] = useState<"顺序" | "随机" | null>(null)
+  const [userChoice, setUserChoice] = useState<"顺序" | "随机" | "">("")
+  const [showPreview, setShowPreview] = useState(false)
+  const [generatedHtml, setGeneratedHtml] = useState("")
   const [parsedQuestions, setParsedQuestions] = useState<ParsedQuestion[]>([])
-  const [showTitleDialog, setShowTitleDialog] = useState(false)
+  const [quizData, setQuizData] = useState<QuizData | null>(null)
   const [quizTitle, setQuizTitle] = useState("")
-  const [showPreview, setShowPreview] = useState(false) // 新增：控制预览显示
-  const [generatedHtml, setGeneratedHtml] = useState("") // 存储生成的HTML内容
+  const [quizDescription, setQuizDescription] = useState("")
+  const [showTitleDialog, setShowTitleDialog] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
-  const [loadingProgress, setLoadingProgress] = useState(0)
+  const [isParsingFile, setIsParsingFile] = useState(false)
   const [loadingMessage, setLoadingMessage] = useState("")
+  const [loadingProgress, setLoadingProgress] = useState(0)
+  const [isSaving, setIsSaving] = useState(false)
+
+  // 刷题相关状态
+  const [showQuizInterface, setShowQuizInterface] = useState(false)
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
+  const [userAnswers, setUserAnswers] = useState<(number | null)[]>([])
+  const [correctCount, setCorrectCount] = useState(0)
+  const [isAnswered, setIsAnswered] = useState(false)
+  const [showExplanation, setShowExplanation] = useState(false)
+  const [quizCompleted, setQuizCompleted] = useState(false)
+
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const maxFileSize = 10 * 1024 * 1024 // 10MB
 
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  // AI API配置
-  const AI_CONFIG = {
-    apiKey: 'sk-1e49426A5A63Ee3C33256F17EF152C02',
-    baseUrl: 'https://twoapi-ui.qiangtu.com/v1'
-  }
+  // 支持的文件格式
+  const supportedFormats = [
+    { ext: 'docx', icon: FileText },
+    { ext: 'doc', icon: FileText },
+    { ext: 'xlsx', icon: FileText },
+    { ext: 'xls', icon: FileText },
+    { ext: 'txt', icon: FileText },
+    { ext: 'md', icon: FileText },
+    { ext: 'pdf', icon: FileText }
+  ]
 
-  // AI调用函数
-  const callAIAPI = async (content: string, orderMode: string) => {
-    const systemPrompt = buildQuizSystemPrompt(orderMode)
-
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 300000) // 5分钟超时
-
+  // 解析题库内容并生成题目 - 增强版
+  const parseQuizContent = (content: string): QuizData => {
     try {
-      const response = await fetch(`${AI_CONFIG.baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${AI_CONFIG.apiKey}`
-        },
-        body: JSON.stringify({
-          model: 'gemini-2.5-pro-preview-06-05',
-          stream: true,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: content }
-          ],
-          temperature: 0.7
-        }),
-        signal: controller.signal
-      })
+      console.log('🔍 开始解析内容，长度:', content.length)
+      console.log('📝 内容预览:', content.substring(0, 300) + '...')
 
-      if (!response.ok) {
-        throw new Error('AI API请求失败')
+      // 先尝试手动解析（更可靠）
+      const manualParsed = parseContentManually(content)
+      if (manualParsed && manualParsed.questions.length > 0) {
+        console.log('✅ 手动解析成功:', manualParsed.questions.length, '题')
+        return manualParsed
       }
 
-      const reader = response.body!.getReader()
-      const decoder = new TextDecoder()
-      let fullContent = ''
+      // 使用QuizParser解析内容
+      const parsedData = QuizParser.parseQuizContent(content)
+      console.log('🤖 QuizParser解析结果:', parsedData)
 
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
+      // 验证解析结果
+      if (!parsedData || !parsedData.questions || parsedData.questions.length === 0) {
+        console.warn('⚠️ 未解析到有效题目，使用备用方案')
+        return createFallbackQuizData(content)
+      }
 
-        const chunk = decoder.decode(value, { stream: true })
-        const lines = chunk.split('\n')
+      // 验证每个题目的完整性
+      const validQuestions = parsedData.questions.filter(q =>
+        q.question && q.question.trim().length > 0 &&
+        q.options && q.options.length > 0
+      )
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const dataStr = line.slice(6).trim()
-            if (dataStr === '[DONE]') break
+      if (validQuestions.length === 0) {
+        console.warn('⚠️ 没有有效的题目，使用备用方案')
+        return createFallbackQuizData(content)
+      }
 
-            try {
-              const data = JSON.parse(dataStr)
-              if (data.choices[0].delta?.content) {
-                fullContent += data.choices[0].delta.content
-              }
-            } catch (e) {
-              // 忽略解析错误
-            }
+      console.log(`✅ 成功解析 ${validQuestions.length} 个有效题目`)
+      return {
+        ...parsedData,
+        questions: validQuestions,
+        totalQuestions: validQuestions.length
+      }
+    } catch (error) {
+      console.error('❌ 解析失败:', error)
+      setError(`解析失败: ${error instanceof Error ? error.message : '未知错误'}`)
+      return createFallbackQuizData(content)
+    }
+  }
+
+  // 手动解析内容（更可靠的解析方法）
+  const parseContentManually = (content: string): QuizData | null => {
+    try {
+      const lines = content.split('\n').map(line => line.trim()).filter(line => line.length > 0)
+      const questions: ParsedQuestion[] = []
+      let currentQuestion: any = {}
+      let questionIndex = 0
+      let title = "智能题库"
+
+      // 提取标题（第一行如果不是题目）
+      if (lines.length > 0 && !lines[0].match(/^\d+\./)) {
+        title = lines[0]
+        lines.shift()
+      }
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]
+
+        // 检测题目（以数字开头，以问号结尾）
+        if (/^\d+\.\s*.*[？?]/.test(line)) {
+          // 保存上一题
+          if (currentQuestion.question) {
+            finalizeCurrentQuestion(currentQuestion, questions, questionIndex)
+            questionIndex++
           }
+
+          // 开始新题
+          currentQuestion = {
+            id: `q_${questionIndex + 1}`,
+            question: line,
+            options: [],
+            correctAnswer: 0,
+            type: 'multiple-choice',
+            explanation: ''
+          }
+        }
+        // 检测选项（A. B. C. D.）
+        else if (/^[A-D][.、]\s*.+/.test(line) && currentQuestion.question) {
+          const option = line.replace(/^[A-D][.、]\s*/, '')
+          currentQuestion.options.push(option)
+        }
+        // 检测答案
+        else if (/^答案[：:]\s*[A-D]/.test(line) && currentQuestion.question) {
+          const answerMatch = line.match(/[A-D]/)
+          if (answerMatch) {
+            currentQuestion.correctAnswer = answerMatch[0].charCodeAt(0) - 'A'.charCodeAt(0)
+          }
+        }
+        // 检测解释
+        else if (/^(解释|说明|解析)[：:]\s*.+/.test(line) && currentQuestion.question) {
+          currentQuestion.explanation = line.replace(/^(解释|说明|解析)[：:]\s*/, '')
         }
       }
 
-      clearTimeout(timeoutId)
-      return extractHtmlFromResponse(fullContent)
+      // 保存最后一题
+      if (currentQuestion.question) {
+        finalizeCurrentQuestion(currentQuestion, questions, questionIndex)
+      }
 
+      console.log('🔧 手动解析结果:', questions.length, '题')
+
+      if (questions.length > 0) {
+        return {
+          title,
+          questions,
+          totalQuestions: questions.length
+        }
+      }
+
+      return null
     } catch (error) {
-      clearTimeout(timeoutId)
-      throw error
+      console.error('手动解析失败:', error)
+      return null
     }
   }
 
-  // 构建题库生成的系统提示词
-  const buildQuizSystemPrompt = (orderMode: string) => {
-    return `# 智能题库生成系统
+  // 完善当前题目
+  const finalizeCurrentQuestion = (currentQuestion: any, questions: ParsedQuestion[], index: number) => {
+    // 确保有选项
+    if (!currentQuestion.options || currentQuestion.options.length === 0) {
+      currentQuestion.options = ['选项A', '选项B', '选项C', '选项D']
+    }
 
-角色：专业题库设计师
+    // 确保有4个选项
+    while (currentQuestion.options.length < 4) {
+      currentQuestion.options.push(`选项${String.fromCharCode(65 + currentQuestion.options.length)}`)
+    }
 
-你是一名专业的题库设计师，擅长从各种学习材料中提取关键知识点并设计高质量的题目。
+    // 确保有正确答案
+    if (currentQuestion.correctAnswer === undefined) {
+      currentQuestion.correctAnswer = 0
+    }
 
-## 任务
+    // 确保有解释
+    if (!currentQuestion.explanation) {
+      currentQuestion.explanation = '暂无解释'
+    }
 
-从我提供的内容中，提取重要知识点并生成一套完整的题库，包含多种题型，适合在线学习和考试练习。
-
-### 题库要求
-
-1. **题目数量**：根据内容长度生成15-30道题目
-2. **题型多样**：
-   - 单选题（40%）
-   - 多选题（30%）
-   - 判断题（20%）
-   - 填空题（10%）
-
-3. **难度分布**：
-   - 基础题（50%）：考查基本概念和定义
-   - 中等题（35%）：考查理解和应用
-   - 困难题（15%）：考查分析和综合
-
-4. **题目顺序**：${orderMode === '顺序' ? '按照内容出现的顺序排列' : '随机打乱顺序'}
-
-### 输出格式
-
-请生成一个完整的HTML文件，包含：
-- 响应式设计，适配手机和电脑
-- 现代化的UI界面
-- 交互式答题功能
-- 实时评分系统
-- 答案解析功能
-
-### HTML结构要求
-
-\`\`\`html
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>智能题库练习</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head>
-<body>
-    <!-- 题库内容 -->
-</body>
-</html>
-\`\`\`
-
-### 设计要求
-
-- 使用Tailwind CSS进行样式设计
-- 包含进度条显示答题进度
-- 每题显示题号、题目、选项
-- 提交后显示正确答案和解析
-- 最终显示总分和详细报告
-- 支持重新开始功能
-
-### 交互功能
-
-- 单选题：点击选择答案
-- 多选题：可选择多个答案
-- 判断题：选择对或错
-- 填空题：输入文本答案
-- 提交按钮：检查答案并显示结果
-
-请确保生成的HTML文件是完整的、可直接运行的，包含所有必要的JavaScript交互逻辑。
-
-待处理内容：`
+    questions.push({
+      id: currentQuestion.id || `q_${index + 1}`,
+      question: currentQuestion.question || `题目 ${index + 1}`,
+      options: currentQuestion.options.slice(0, 4),
+      correctAnswer: currentQuestion.correctAnswer,
+      type: currentQuestion.type || 'multiple-choice',
+      explanation: currentQuestion.explanation
+    })
   }
 
-  // 从AI响应中提取HTML内容
-  const extractHtmlFromResponse = (content: string) => {
-    // 首先解码转义字符
-    let decodedContent = content
-      .replace(/\\u003c/g, '<')
-      .replace(/\\u003e/g, '>')
-      .replace(/\\"/g, '"')
-      .replace(/\\n/g, '\n')
-      .replace(/\\t/g, '\t')
-      .replace(/\\r/g, '\r')
-      .replace(/\\\\/g, '\\')
+  // 创建备用题库数据
+  const createFallbackQuizData = (content: string): QuizData => {
+    const contentPreview = content.substring(0, 100) + (content.length > 100 ? '...' : '')
 
-    // 尝试提取代码块中的HTML
-    const codeBlockRegex = /```html\n([\s\S]*?)\n```/
-    const match = decodedContent.match(codeBlockRegex)
-
-    if (match && match[1]) {
-      return match[1]
+    const fallbackQuestion: ParsedQuestion = {
+      id: "q_1",
+      question: `基于您上传的内容创建的示例题目：\n\n内容预览：${contentPreview}\n\n请选择最合适的描述：`,
+      options: [
+        "内容已成功处理，可以生成题库",
+        "内容格式需要调整",
+        "需要更多信息才能处理",
+        "内容包含有效的学习材料"
+      ],
+      correctAnswer: 0,
+      type: "multiple-choice",
+      explanation: "这是基于您的内容生成的示例题目。实际使用时，系统会根据内容自动生成相关题目。"
     }
 
-    // 尝试提取没有语言标识的代码块
-    const generalCodeBlockRegex = /```\n([\s\S]*?)\n```/
-    const generalMatch = decodedContent.match(generalCodeBlockRegex)
-
-    if (generalMatch && generalMatch[1] &&
-        (generalMatch[1].trim().startsWith('<!DOCTYPE html') || generalMatch[1].trim().startsWith('<html'))) {
-      return generalMatch[1]
+    return {
+      title: "智能解析题库",
+      questions: [fallbackQuestion],
+      totalQuestions: 1
     }
-
-    // 如果没有代码块，尝试查找HTML标签
-    const htmlTagRegex = /<html[\s\S]*<\/html>/i
-    const htmlMatch = decodedContent.match(htmlTagRegex)
-
-    if (htmlMatch) {
-      return htmlMatch[0]
-    }
-
-    // 检查是否直接以HTML开头
-    const trimmedContent = decodedContent.trim()
-    if (trimmedContent.startsWith('<!DOCTYPE html') || trimmedContent.startsWith('<html')) {
-      return trimmedContent
-    }
-
-    // 如果都没有，返回原始内容
-    return decodedContent
   }
 
-  const supportedFormats = [
-    { ext: "docx", mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", icon: FileText },
-    { ext: "doc", mime: "application/msword", icon: FileText },
-    { ext: "xlsx", mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", icon: FileSpreadsheet },
-    { ext: "xls", mime: "application/vnd.ms-excel", icon: FileSpreadsheet },
-    { ext: "txt", mime: "text/plain", icon: FileType },
-    { ext: "md", mime: "text/markdown", icon: FileType },
-    { ext: "pdf", mime: "application/pdf", icon: File },
-  ]
-
-  const maxFileSize = 10 * 1024 * 1024 // 10MB
-
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // 文件上传处理
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
 
-    setError("")
-
-    // 检查文件类型
-    const isSupported = supportedFormats.some(format => 
-      format.mime === file.type || file.name.toLowerCase().endsWith(`.${format.ext}`)
-    )
-
-    if (!isSupported) {
-      setError(`不支持的文件格式"${file.name.split('.').pop()?.toUpperCase()}"。请上传 Word (.docx/.doc)、Excel (.xlsx/.xls)、PDF (.pdf)、文本 (.txt) 或 Markdown (.md) 文件。`)
-      return
-    }
-
-    // 检查文件大小
     if (file.size > maxFileSize) {
-      setError(`文件"${file.name}"大小为 ${formatFileSize(file.size)}，超过 ${formatFileSize(maxFileSize)} 的限制。请压缩文件或选择较小的文件。`)
-      return
-    }
-
-    // 检查文件是否为空
-    if (file.size === 0) {
-      setError(`文件"${file.name}"为空文件，请选择包含内容的文件。`)
+      setError(`文件大小超过限制（${maxFileSize / 1024 / 1024}MB）`)
       return
     }
 
     setUploadedFile(file)
+    setError("")
+    setIsParsingFile(true)
+    setLoadingMessage("正在解析文件...")
+
+    try {
+      const extractedContent = await FileParser.parseFile(file)
+      setContent(extractedContent)
+      setIsParsingFile(false)
+      setLoadingMessage("")
+    } catch (error) {
+      console.error('文件解析失败:', error)
+      setError('文件解析失败，请检查文件格式是否正确')
+      setIsParsingFile(false)
+      setLoadingMessage("")
+    }
   }
 
+  // 拖拽处理
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
     setIsDragOver(true)
@@ -313,125 +292,282 @@ export function SmartParsingPage() {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     setIsDragOver(false)
-
+    
     const files = e.dataTransfer.files
     if (files.length > 0) {
       const file = files[0]
-
-      setError("")
-
-      // 检查文件类型
-      const isSupported = supportedFormats.some(format =>
-        format.mime === file.type || file.name.toLowerCase().endsWith(`.${format.ext}`)
-      )
-
-      if (!isSupported) {
-        setError(`拖拽的文件格式"${file.name.split('.').pop()?.toUpperCase()}"不受支持。请拖拽 Word (.docx/.doc)、Excel (.xlsx/.xls)、PDF (.pdf)、文本 (.txt) 或 Markdown (.md) 文件。`)
-        return
+      if (fileInputRef.current) {
+        const dt = new DataTransfer()
+        dt.items.add(file)
+        fileInputRef.current.files = dt.files
+        handleFileUpload({ target: { files: dt.files } } as any)
       }
-
-      // 检查文件大小
-      if (file.size > maxFileSize) {
-        setError(`拖拽的文件"${file.name}"大小为 ${formatFileSize(file.size)}，超过 ${formatFileSize(maxFileSize)} 的限制。`)
-        return
-      }
-
-      // 检查文件是否为空
-      if (file.size === 0) {
-        setError(`拖拽的文件"${file.name}"为空文件，请选择包含内容的文件。`)
-        return
-      }
-
-      setUploadedFile(file)
     }
   }
 
+  // 开始解析 - 调用API获取第一步提示
   const handleStartParsing = async () => {
-    if (!uploadedFile && !content.trim()) {
-      setError("请上传文件或输入题库内容")
+    if (!content.trim() && !uploadedFile) {
+      setError("请先上传文件或输入内容")
       return
     }
 
     setIsLoading(true)
+    setLoadingMessage("正在分析内容...")
     setError("")
 
     try {
-      // 步骤1：询问用户选择
-      if (currentStep === 1) {
-        setCurrentStep(2)
+      // 第一次调用API，不传orderMode，获取提示
+      console.log('🚀 开始第一步API调用...')
+      const response = await fetch('/api/ai/parse-quiz', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: content,
+          aiConfig: {
+            provider: 'twoapi',
+            model: 'gemini-2.5-pro-preview-06-05'
+          }
+          // 故意不传 orderMode，触发第一步提示
+        })
+      })
+
+      console.log('📡 API响应状态:', response.status, response.ok)
+      const result = await response.json()
+      console.log('📦 API响应数据:', result)
+
+      if (!response.ok && result.step === 'step1') {
+        // 收到第一步提示，显示选择界面
+        console.log('✅ 收到第一步提示，切换到选择界面')
         setIsLoading(false)
+        setCurrentStep(2)
         return
       }
 
-      // 步骤2：处理文件并生成题库
-      if (currentStep === 2 && userChoice) {
-        setLoadingMessage("AI正在生成题库...")
-        setLoadingProgress(80)
+      // 如果直接成功了（不应该发生），也进入第二步
+      console.log('⚠️ 直接成功，进入第二步')
+      setIsLoading(false)
+      setCurrentStep(2)
 
-        // 直接调用AI API生成题库
-        const htmlContent = await callAIAPI(content, userChoice)
-
-        if (htmlContent) {
-          setLoadingMessage("生成题库完成！")
-          setLoadingProgress(100)
-
-          // 保存生成的HTML内容
-          setGeneratedHtml(htmlContent)
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('generatedQuizHtml', htmlContent)
-          }
-
-          // 创建模拟题目数据用于预览
-          const mockQuestions: ParsedQuestion[] = [
-            {
-              id: "1",
-              question: "基于您上传的文件生成的题目示例",
-              answer: "这是一个示例答案",
-              type: "multiple-choice",
-              options: ["选项A", "选项B", "选项C", "选项D"]
-            }
-          ]
-
-          setParsedQuestions(mockQuestions)
-          setCurrentStep(3)
-          setShowPreview(true)
-          setShowTitleDialog(true)
-        } else {
-          throw new Error('生成的HTML内容为空')
-        }
-      }
     } catch (error) {
-      console.error('解析错误:', error)
-
-      // 根据错误类型提供更具体的错误信息
-      let errorMessage = "解析过程中发生错误，请重试"
-
-      if (error instanceof Error) {
-        if (error.message.includes('网络')) {
-          errorMessage = "网络连接失败，请检查网络连接后重试"
-        } else if (error.message.includes('超时')) {
-          errorMessage = "解析超时，文件可能过大或网络较慢，请稍后重试"
-        } else if (error.message.includes('格式')) {
-          errorMessage = "文件格式不支持或文件已损坏，请检查文件后重新上传"
-        } else {
-          errorMessage = error.message
-        }
-      }
-
-      setError(errorMessage)
-      setLoadingProgress(0)
-      setLoadingMessage("")
-    } finally {
+      console.error('❌ 获取提示失败:', error)
+      setError('连接失败，请重试')
       setIsLoading(false)
     }
   }
 
-  const handleChoiceSelection = (choice: "顺序" | "随机") => {
+  // 选择出题方式 - 调用API
+  const handleChoiceSelection = async (choice: "顺序" | "随机") => {
     setUserChoice(choice)
-    handleStartParsing()
+    setIsLoading(true)
+    setLoadingMessage("正在解析题库内容...")
+    setLoadingProgress(0)
+
+    try {
+      // 第二次调用API，传递用户选择的orderMode
+      const response = await fetch('/api/ai/parse-quiz', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: content,
+          orderMode: choice, // 传递用户选择
+          aiConfig: {
+            provider: 'twoapi', // 使用twoapi provider
+            model: 'gemini-2.5-pro-preview-06-05'
+          }
+        })
+      })
+
+      setLoadingProgress(50)
+      setLoadingMessage("正在生成交互式题库...")
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || '生成失败')
+      }
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || '生成失败')
+      }
+
+      setLoadingProgress(90)
+      setLoadingMessage("正在准备下载...")
+
+      // 获取生成的HTML
+      const html = result.data.html
+      setGeneratedHtml(html)
+
+      // 解析原始内容，填充可在线刷题的题目数据
+      const parsed = parseQuizContent(content)
+      setQuizData(parsed)
+      setParsedQuestions(parsed.questions)
+      setQuizTitle(parsed.title || quizTitle)
+
+      setLoadingProgress(100)
+      setIsLoading(false)
+      setLoadingMessage("")
+      setLoadingProgress(0)
+
+      // 自动下载生成的HTML文件
+      setTimeout(() => {
+        autoDownloadHtml(html, (parsed.title || '智能题库'))
+      }, 500)
+
+    } catch (error) {
+      console.error('题库生成失败:', error)
+      setError(error instanceof Error ? error.message : '题库生成失败，请检查内容格式或重试')
+      setIsLoading(false)
+      setLoadingMessage("")
+      setLoadingProgress(0)
+    }
   }
 
-  const handleSaveTitleAndGenerate = async () => {
+  // 自动下载HTML文件
+  const autoDownloadHtml = (htmlContent: string, title: string) => {
+    try {
+      console.log('🎯 开始自动下载HTML文件...')
+
+      // 生成文件名
+      const fileName = `${title || '智能刷题'}-${new Date().toISOString().slice(0, 10)}.html`
+
+      // 创建下载
+      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fileName
+      a.style.display = 'none'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+
+      console.log('✅ HTML文件下载成功:', fileName)
+
+      // 显示成功消息
+      setError('')
+      setCurrentStep(4) // 显示完成状态
+
+      // 3秒后显示选项
+      setTimeout(() => {
+        setCurrentStep(5) // 显示后续选项
+      }, 3000)
+
+    } catch (error) {
+      console.error('❌ HTML下载失败:', error)
+      setError('HTML文件生成失败，请重试')
+    }
+  }
+
+  // 手动下载HTML
+  const downloadQuizHtml = () => {
+    if (!generatedHtml) return
+
+    const blob = new Blob([generatedHtml], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${quizTitle || '智能题库'}.html`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  // 刷题相关函数
+  const startQuizInterface = () => {
+    if (quizData && quizData.questions.length > 0) {
+      // 根据用户选择排序题目
+      let questions = [...quizData.questions]
+      if (userChoice === "随机") {
+        questions = questions.sort(() => Math.random() - 0.5)
+      }
+
+      setQuizData({ ...quizData, questions })
+      setUserAnswers(new Array(questions.length).fill(null))
+      setCurrentQuestionIndex(0)
+      setCorrectCount(0)
+      setIsAnswered(false)
+      setShowExplanation(false)
+      setQuizCompleted(false)
+      setShowQuizInterface(true)
+      setCurrentStep(6) // 刷题界面步骤
+    }
+  }
+
+  const handleAnswerSelect = (answerIndex: number) => {
+    if (isAnswered || !quizData) return
+
+    const newAnswers = [...userAnswers]
+    newAnswers[currentQuestionIndex] = answerIndex
+    setUserAnswers(newAnswers)
+    setIsAnswered(true)
+
+    // 检查答案是否正确
+    const currentQuestion = quizData.questions[currentQuestionIndex]
+    if (answerIndex === currentQuestion.correctAnswer) {
+      setCorrectCount(prev => prev + 1)
+    }
+
+    // 显示解释
+    setShowExplanation(true)
+  }
+
+  const nextQuestion = () => {
+    if (!quizData) return
+
+    if (currentQuestionIndex < quizData.questions.length - 1) {
+      setCurrentQuestionIndex(prev => prev + 1)
+      setIsAnswered(false)
+      setShowExplanation(false)
+    } else {
+      setQuizCompleted(true)
+    }
+  }
+
+  const restartQuiz = () => {
+    setCurrentQuestionIndex(0)
+    setUserAnswers(new Array(quizData?.questions.length || 0).fill(null))
+    setCorrectCount(0)
+    setIsAnswered(false)
+    setShowExplanation(false)
+    setQuizCompleted(false)
+  }
+
+  const backToParsingPage = () => {
+    setShowQuizInterface(false)
+    setCurrentStep(5) // 返回到选项页面
+  }
+
+  // 保存题库
+  const handleSaveQuiz = async () => {
+    if (!quizTitle.trim()) {
+      setError("请输入题库标题")
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      // 这里可以添加保存到数据库的逻辑
+      console.log("保存题库:", { title: quizTitle, description: quizDescription, questions: parsedQuestions })
+      setShowTitleDialog(false)
+      // 可以显示成功消息
+    } catch (error) {
+      console.error("保存失败:", error)
+      setError("保存失败，请重试")
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  // 保存标题并生成HTML
+  const handleSaveTitleAndGenerate = () => {
     if (!quizTitle.trim()) {
       setError("请输入题库标题")
       return
@@ -441,61 +577,7 @@ export function SmartParsingPage() {
     downloadQuizHtml()
   }
 
-  const downloadQuizHtml = () => {
-    try {
-      const htmlContent = generatedHtml || (typeof window !== 'undefined' ? localStorage.getItem('generatedQuizHtml') : null)
-
-      if (!htmlContent) {
-        throw new Error('未找到生成的HTML内容')
-      }
-
-      const title = quizTitle || '智能题库'
-
-      // 更新HTML中的标题
-      const updatedHtml = htmlContent.replace(
-        /<title>.*?<\/title>/,
-        `<title>${title} - 智能题库系统</title>`
-      ).replace(
-        /<h1[^>]*>.*?<\/h1>/,
-        `<h1>🎯 ${title}</h1>`
-      )
-
-      // 创建下载链接
-      const blob = new Blob([updatedHtml], { type: 'text/html;charset=utf-8' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `${title}.html`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
-
-      alert(`题库"${title}"已成功下载！`)
-    } catch (error) {
-      console.error('下载题库错误:', error)
-      setError("下载题库时发生错误")
-    }
-  }
-
-  const resetParsing = () => {
-    setCurrentStep(1)
-    setUserChoice(null)
-    setParsedQuestions([])
-    setUploadedFile(null)
-    setContent("")
-    setError("")
-    setQuizTitle("")
-    setShowPreview(false) // 隐藏预览，恢复居中布局
-    setGeneratedHtml("") // 清空生成的HTML
-    setLoadingProgress(0)
-    setLoadingMessage("")
-    // 清理localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('generatedQuizHtml')
-    }
-  }
-
+  // 格式化文件大小
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes'
     const k = 1024
@@ -504,13 +586,39 @@ export function SmartParsingPage() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
-  const getStepIcon = (step: number) => {
-    if (currentStep > step) return <CheckCircle className="h-5 w-5 text-green-600" />
-    if (currentStep === step) return <div className="h-5 w-5 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs">{step}</div>
-    return <div className="h-5 w-5 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 text-xs">{step}</div>
+  // 重置
+  const resetParsing = () => {
+    setCurrentStep(1)
+    setUserChoice("")
+    setShowPreview(false)
+    setGeneratedHtml("")
+    setParsedQuestions([])
+    setQuizData(null)
+    setError("")
+    setIsLoading(false)
+    setLoadingMessage("")
+    setLoadingProgress(0)
+    // 重置刷题相关状态
+    setShowQuizInterface(false)
+    setCurrentQuestionIndex(0)
+    setUserAnswers([])
+    setCorrectCount(0)
+    setIsAnswered(false)
+    setShowExplanation(false)
+    setQuizCompleted(false)
   }
 
-  // 防止hydration错误
+  // 步骤图标
+  const getStepIcon = (step: number) => {
+    if (currentStep > step) {
+      return <CheckCircle className="h-5 w-5 text-green-600" />
+    } else if (currentStep === step) {
+      return <div className="h-5 w-5 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold">{step}</div>
+    } else {
+      return <div className="h-5 w-5 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 text-xs font-bold">{step}</div>
+    }
+  }
+
   if (!mounted) {
     return null
   }
@@ -567,49 +675,9 @@ export function SmartParsingPage() {
           {error && (
             <Alert variant="destructive" className="mb-6 border-red-200 bg-red-50">
               <AlertCircle className="h-4 w-4 text-red-600" />
-              <div className="flex-1">
-                <AlertDescription className="text-red-800 font-medium">
-                  {error}
-                </AlertDescription>
-                <div className="mt-3 flex space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setError("")}
-                    className="h-8 text-xs border-red-300 text-red-700 hover:bg-red-100"
-                  >
-                    关闭
-                  </Button>
-                  {error.includes('API') && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setError("")
-                        // 这里可以打开API配置对话框
-                      }}
-                      className="h-8 text-xs border-red-300 text-red-700 hover:bg-red-100"
-                    >
-                      检查API设置
-                    </Button>
-                  )}
-                  {(error.includes('网络') || error.includes('超时')) && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setError("")
-                        if (currentStep === 2 && userChoice) {
-                          handleStartParsing()
-                        }
-                      }}
-                      className="h-8 text-xs border-red-300 text-red-700 hover:bg-red-100"
-                    >
-                      重试
-                    </Button>
-                  )}
-                </div>
-              </div>
+              <AlertDescription className="text-red-800 font-medium">
+                {error}
+              </AlertDescription>
             </Alert>
           )}
         </div>
@@ -617,16 +685,16 @@ export function SmartParsingPage() {
         {/* 主要内容区域 - 动态布局 */}
         <div className={`transition-all duration-1000 ease-in-out min-h-[calc(100vh-280px)] ${
           showPreview
-            ? 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6'
+            ? 'grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-6'
             : 'flex items-center justify-center'
         }`}>
           {/* 上传区域 */}
           <div className={`transition-all duration-1000 ease-in-out ${
-            showPreview 
-              ? 'col-span-1 space-y-6 overflow-y-auto' 
+            showPreview
+              ? 'lg:col-span-2 space-y-6 overflow-y-auto'
               : 'w-full max-w-4xl space-y-6 overflow-y-auto'
           }`}>
-            <Card className={`swordsman-card ${showPreview ? 'h-full' : 'h-auto'}`}>
+            <Card className={`${showPreview ? 'h-full' : 'h-auto'}`}>
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center text-xl">
                   <Upload className="h-6 w-6 mr-3" />
@@ -638,12 +706,12 @@ export function SmartParsingPage() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <Tabs defaultValue="upload" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 swordsman-tabs">
-                    <TabsTrigger value="upload" className="swordsman-tab flex items-center space-x-2">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="upload" className="flex items-center space-x-2">
                       <FileText className="h-4 w-4" />
                       <span>文件上传</span>
                     </TabsTrigger>
-                    <TabsTrigger value="text" className="swordsman-tab flex items-center space-x-2">
+                    <TabsTrigger value="text" className="flex items-center space-x-2">
                       <FileType className="h-4 w-4" />
                       <span>文本输入</span>
                     </TabsTrigger>
@@ -703,7 +771,11 @@ export function SmartParsingPage() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-4">
                             <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-lg">
-                              <CheckCircle className="h-7 w-7 text-white" />
+                              {isParsingFile ? (
+                                <div className="animate-spin rounded-full h-7 w-7 border-2 border-white border-t-transparent"></div>
+                              ) : (
+                                <CheckCircle className="h-7 w-7 text-white" />
+                              )}
                             </div>
                             <div className="flex-1">
                               <p className="font-semibold text-green-800 text-lg">{uploadedFile.name}</p>
@@ -712,11 +784,25 @@ export function SmartParsingPage() {
                                   📁 {formatFileSize(uploadedFile.size)}
                                 </p>
                                 <p className="text-green-600 text-sm">
-                                  📄 {uploadedFile.type || '未知类型'}
+                                  📄 {FileParser.getFileType(uploadedFile)}
                                 </p>
                                 <div className="flex items-center space-x-1">
-                                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                                  <span className="text-green-600 text-sm font-medium">已准备解析</span>
+                                  {isParsingFile ? (
+                                    <>
+                                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                                      <span className="text-blue-600 text-sm font-medium">正在解析...</span>
+                                    </>
+                                  ) : content ? (
+                                    <>
+                                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                      <span className="text-green-600 text-sm font-medium">解析完成</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+                                      <span className="text-yellow-600 text-sm font-medium">等待解析</span>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -726,7 +812,13 @@ export function SmartParsingPage() {
                             size="sm"
                             onClick={() => {
                               setUploadedFile(null)
+                              setContent("")
                               setError("")
+                              setIsParsingFile(false)
+                              setLoadingMessage("")
+                              if (fileInputRef.current) {
+                                fileInputRef.current.value = ""
+                              }
                             }}
                             className="text-green-600 hover:text-green-800 hover:bg-green-100 rounded-full w-8 h-8 p-0"
                             title="移除文件"
@@ -735,30 +827,22 @@ export function SmartParsingPage() {
                           </Button>
                         </div>
 
-                        {/* 文件预览信息 */}
-                        <div className="mt-4 pt-4 border-t border-green-200">
-                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 text-xs md:text-sm">
-                            <div className="text-center">
-                              <div className="text-green-800 font-semibold mb-1">文件类型</div>
-                              <div className="text-green-600">{uploadedFile.name.split('.').pop()?.toUpperCase()}</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-green-800 font-semibold mb-1">文件大小</div>
-                              <div className="text-green-600">{formatFileSize(uploadedFile.size)}</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-green-800 font-semibold mb-1">上传时间</div>
-                              <div className="text-green-600">{new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-green-800 font-semibold mb-1">状态</div>
-                              <div className="text-green-600 flex items-center justify-center space-x-1">
-                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                <span>就绪</span>
+                        {/* 解析状态信息 */}
+                        {(isParsingFile || content) && (
+                          <div className="mt-4 pt-4 border-t border-green-200">
+                            {isParsingFile && loadingMessage && (
+                              <div className="flex items-center space-x-2 text-blue-600 mb-2">
+                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
+                                <span className="text-sm font-medium">{loadingMessage}</span>
                               </div>
-                            </div>
+                            )}
+                            {content && !isParsingFile && (
+                              <div className="text-sm text-green-600">
+                                ✅ 已成功提取 <span className="font-medium">{content.length}</span> 个字符的内容
+                              </div>
+                            )}
                           </div>
-                        </div>
+                        )}
                       </div>
                     )}
                   </TabsContent>
@@ -770,7 +854,7 @@ export function SmartParsingPage() {
                         placeholder="在此处粘贴您的题库文本内容..."
                         value={content}
                         onChange={(e) => setContent(e.target.value)}
-                        className="min-h-[400px] text-base swordsman-input resize-none"
+                        className="min-h-[400px] text-base resize-none"
                       />
                       {content && (
                         <div className="flex justify-between items-center text-sm">
@@ -785,22 +869,6 @@ export function SmartParsingPage() {
                     </div>
                   </TabsContent>
                 </Tabs>
-
-                {/* 支持格式说明 */}
-                <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
-                  <h4 className="font-semibold mb-4 text-blue-900 flex items-center">
-                    <Sparkles className="h-5 w-5 mr-2" />
-                    支持的文件格式
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    {supportedFormats.map((format) => (
-                      <div key={format.ext} className="flex items-center space-x-2 text-blue-700">
-                        <format.icon className="h-4 w-4" />
-                        <span className="font-medium">.{format.ext}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
 
                 {/* 步骤1：用户选择 */}
                 {currentStep === 2 && !userChoice && !isLoading && (
@@ -818,7 +886,7 @@ export function SmartParsingPage() {
                       <div className="grid grid-cols-2 gap-4">
                         <Button 
                           onClick={() => handleChoiceSelection("顺序")}
-                          className="swordsman-button h-14 text-lg flex items-center justify-center space-x-2"
+                          className="h-14 text-lg flex items-center justify-center space-x-2"
                         >
                           <Clock className="h-5 w-5" />
                           <span>按顺序出题</span>
@@ -843,7 +911,7 @@ export function SmartParsingPage() {
                       onClick={handleStartParsing}
                       disabled={(!uploadedFile && !content.trim()) || isLoading}
                       size="lg"
-                      className="swordsman-button px-12 py-4 text-xl h-16 rounded-xl"
+                      className="px-12 py-4 text-xl h-16 rounded-xl"
                     >
                       {isLoading ? (
                         <div className="flex items-center space-x-3">
@@ -882,13 +950,123 @@ export function SmartParsingPage() {
                     </div>
                   </div>
                 )}
+
+                {/* HTML下载完成提示 */}
+                {currentStep === 4 && (
+                  <Card className="border-green-200 bg-green-50">
+                    <CardContent className="p-8 text-center">
+                      <div className="flex flex-col items-center space-y-4">
+                        <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center">
+                          <CheckCircle className="h-8 w-8 text-white" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-green-800">HTML文件生成成功！</h3>
+                        <p className="text-green-700">
+                          刷题网页已自动下载到您的电脑，请查看下载文件夹
+                        </p>
+                        <div className="animate-pulse text-green-600">
+                          正在准备更多选项...
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* 后续选项 */}
+                {currentStep === 5 && (
+                  <Card className="border-blue-200 bg-blue-50">
+                    <CardHeader>
+                      <CardTitle className="text-blue-800 flex items-center">
+                        <Target className="h-5 w-5 mr-2" />
+                        接下来您想要做什么？
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Button
+                          onClick={startQuizInterface}
+                          className="h-20 flex flex-col items-center justify-center space-y-2"
+                          disabled={!quizData}
+                        >
+                          <Target className="h-6 w-6" />
+                          <span>在线刷题练习</span>
+                          <span className="text-xs opacity-80">直接在网页上练习</span>
+                        </Button>
+
+                        <Button
+                          onClick={downloadQuizHtml}
+                          variant="outline"
+                          className="h-20 flex flex-col items-center justify-center space-y-2"
+                          disabled={!generatedHtml}
+                        >
+                          <FileText className="h-6 w-6" />
+                          <span>重新下载HTML</span>
+                          <span className="text-xs opacity-80">再次下载刷题文件</span>
+                        </Button>
+
+                        <Button
+                          onClick={() => setShowPreview(true)}
+                          variant="outline"
+                          className="h-20 flex flex-col items-center justify-center space-y-2"
+                          disabled={!generatedHtml}
+                        >
+                          <Brain className="h-6 w-6" />
+                          <span>预览HTML</span>
+                          <span className="text-xs opacity-80">查看生成的网页</span>
+                        </Button>
+
+                        <Button
+                          onClick={() => setCurrentStep(7)}
+                          variant="outline"
+                          className="h-20 flex flex-col items-center justify-center space-y-2"
+                          disabled={!quizData || quizData.questions.length < 20}
+                        >
+                          <Zap className="h-6 w-6" />
+                          <span>批量处理</span>
+                          <span className="text-xs opacity-80">分割成多个网页</span>
+                        </Button>
+
+                        <Button
+                          onClick={resetParsing}
+                          variant="outline"
+                          className="h-20 flex flex-col items-center justify-center space-y-2"
+                        >
+                          <RotateCcw className="h-6 w-6" />
+                          <span>重新开始</span>
+                          <span className="text-xs opacity-80">上传新的题目文件</span>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* 批量处理界面 */}
+                {currentStep === 7 && quizData && (
+                  <BatchProcessingInterface
+                    quizData={quizData}
+                    onBack={() => setCurrentStep(5)}
+                  />
+                )}
+
+                {/* 重置按钮 */}
+                {currentStep > 1 && currentStep < 4 && (
+                  <div className="flex justify-center pt-4">
+                    <Button
+                      onClick={resetParsing}
+                      variant="outline"
+                      className="flex items-center space-x-2"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                      <span>重新开始</span>
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
 
           {/* 右侧：解析结果和题目预览 */}
           {showPreview && (
-            <div className="col-span-2 space-y-6 overflow-y-auto transition-all duration-1000 ease-in-out">
+            <div className="lg:col-span-3 space-y-6 overflow-y-auto transition-all duration-1000 ease-in-out">
               {/* HTML预览区域 */}
               {generatedHtml && (
                 <div className="h-full">
@@ -900,104 +1078,197 @@ export function SmartParsingPage() {
                   />
                 </div>
               )}
-
-              {/* 题目列表预览（作为备选） */}
-              {!generatedHtml && parsedQuestions.length > 0 && (
-              <Card className="swordsman-card h-full">
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center justify-between text-xl">
-                    <div className="flex items-center">
-                      <CheckCircle className="h-6 w-6 mr-3 text-green-600" />
-                      <span>解析结果</span>
-                    </div>
-                    <Badge variant="secondary" className="text-lg px-3 py-1">
-                      {parsedQuestions.length} 道题目
-                    </Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="bg-green-50 border border-green-200 rounded-xl p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <CheckCircle className="h-6 w-6 text-green-600 mr-3" />
-                        <div>
-                          <span className="font-semibold text-green-800 text-lg">
-                            题库解析完成！
-                          </span>
-                          <p className="text-green-600">出题方式：{userChoice}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 题目预览 */}
-                  <div className="space-y-4">
-                    <h4 className="font-semibold text-lg flex items-center">
-                      <FileText className="h-5 w-5 mr-2" />
-                      题目预览
-                    </h4>
-                    <div className="space-y-4 max-h-96 overflow-y-auto">
-                      {parsedQuestions.slice(0, 5).map((question, index) => (
-                        <div key={question.id} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="text-sm font-semibold text-gray-700">题目 {index + 1}</span>
-                            <Badge variant={question.type === "multiple-choice" ? "default" : "secondary"}>
-                              {question.type === "multiple-choice" ? "选择题" : "填空题"}
-                            </Badge>
-                          </div>
-                          <p className="text-gray-800 mb-3 font-medium">{question.question}</p>
-                          {question.options && (
-                            <div className="space-y-2">
-                              {question.options.map((option, optIndex) => (
-                                <div key={optIndex} className="text-sm text-gray-600 flex items-center">
-                                  <span className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-3 text-xs font-medium">
-                                    {String.fromCharCode(65 + optIndex)}
-                                  </span>
-                                  {option}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                      {parsedQuestions.length > 5 && (
-                        <div className="text-center py-4">
-                          <p className="text-gray-500">
-                            还有 {parsedQuestions.length - 5} 道题目...
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <Button 
-                      className="swordsman-button h-12 text-lg"
-                      onClick={() => setShowTitleDialog(true)}
-                    >
-                      <Download className="h-5 w-5 mr-2" />
-                      生成题库网页
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      onClick={resetParsing}
-                      className="h-12 text-lg border-2"
-                    >
-                      重新解析
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            
             </div>
           )}
         </div>
 
+        {/* 刷题界面 */}
+        {showQuizInterface && quizData && (
+          <div className="fixed inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 z-50 overflow-y-auto">
+            <div className="min-h-screen p-4">
+              <div className="max-w-4xl mx-auto">
+                {/* 头部信息 */}
+                <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
+                        <Target className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <h1 className="text-2xl font-bold text-gray-800">{quizData.title}</h1>
+                        <p className="text-gray-600">
+                          题目 {currentQuestionIndex + 1} / {quizData.questions.length}
+                          {userChoice && ` • ${userChoice}模式`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                      <div className="text-right">
+                        <p className="text-sm text-gray-500">正确率</p>
+                        <p className="text-xl font-bold text-green-600">
+                          {quizData.questions.length > 0 ? Math.round((correctCount / Math.max(currentQuestionIndex, 1)) * 100) : 0}%
+                        </p>
+                      </div>
+                      <Button
+                        onClick={backToParsingPage}
+                        variant="outline"
+                        className="flex items-center space-x-2"
+                      >
+                        <ArrowRight className="h-4 w-4 rotate-180" />
+                        <span>返回</span>
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* 进度条 */}
+                  <div className="mt-4">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${((currentQuestionIndex + 1) / quizData.questions.length) * 100}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+
+                {!quizCompleted ? (
+                  /* 题目卡片 */
+                  <div className="bg-white rounded-xl shadow-lg p-8">
+                    <div className="mb-8">
+                      <h2 className="text-xl font-semibold text-gray-800 mb-6 leading-relaxed">
+                        {quizData.questions[currentQuestionIndex]?.question}
+                      </h2>
+
+                      {/* 选项 */}
+                      <div className="space-y-3">
+                        {quizData.questions[currentQuestionIndex]?.options.map((option, index) => {
+                          const isSelected = userAnswers[currentQuestionIndex] === index
+                          const isCorrect = index === quizData.questions[currentQuestionIndex].correctAnswer
+                          const showResult = isAnswered
+
+                          let buttonClass = "w-full p-4 text-left border-2 rounded-lg transition-all duration-200 "
+
+                          if (showResult) {
+                            if (isCorrect) {
+                              buttonClass += "border-green-500 bg-green-50 text-green-800"
+                            } else if (isSelected && !isCorrect) {
+                              buttonClass += "border-red-500 bg-red-50 text-red-800"
+                            } else {
+                              buttonClass += "border-gray-200 bg-gray-50 text-gray-600"
+                            }
+                          } else {
+                            buttonClass += isSelected
+                              ? "border-blue-500 bg-blue-50 text-blue-800"
+                              : "border-gray-200 hover:border-blue-300 hover:bg-blue-50"
+                          }
+
+                          return (
+                            <button
+                              key={index}
+                              onClick={() => handleAnswerSelect(index)}
+                              disabled={isAnswered}
+                              className={buttonClass}
+                            >
+                              <div className="flex items-center space-x-3">
+                                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-sm font-medium ${
+                                  showResult && isCorrect
+                                    ? "border-green-500 bg-green-500 text-white"
+                                    : showResult && isSelected && !isCorrect
+                                    ? "border-red-500 bg-red-500 text-white"
+                                    : isSelected
+                                    ? "border-blue-500 bg-blue-500 text-white"
+                                    : "border-gray-300"
+                                }`}>
+                                  {String.fromCharCode(65 + index)}
+                                </div>
+                                <span className="flex-1">{option}</span>
+                                {showResult && isCorrect && (
+                                  <CheckCircle className="h-5 w-5 text-green-500" />
+                                )}
+                                {showResult && isSelected && !isCorrect && (
+                                  <X className="h-5 w-5 text-red-500" />
+                                )}
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {/* 解释 */}
+                    {showExplanation && quizData.questions[currentQuestionIndex]?.explanation && (
+                      <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h3 className="font-semibold text-blue-800 mb-2">解释</h3>
+                        <p className="text-blue-700">{quizData.questions[currentQuestionIndex].explanation}</p>
+                      </div>
+                    )}
+
+                    {/* 下一题按钮 */}
+                    {isAnswered && (
+                      <div className="flex justify-center mt-8">
+                        <Button
+                          onClick={nextQuestion}
+                          size="lg"
+                          className="px-8 py-3 text-lg"
+                        >
+                          {currentQuestionIndex < quizData.questions.length - 1 ? (
+                            <>
+                              <span>下一题</span>
+                              <ArrowRight className="h-5 w-5 ml-2" />
+                            </>
+                          ) : (
+                            <>
+                              <span>查看结果</span>
+                              <CheckCircle className="h-5 w-5 ml-2" />
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* 完成界面 */
+                  <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+                    <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <CheckCircle className="h-10 w-10 text-white" />
+                    </div>
+                    <h2 className="text-3xl font-bold text-gray-800 mb-4">恭喜完成！</h2>
+                    <div className="text-6xl font-bold text-green-600 mb-2">
+                      {Math.round((correctCount / quizData.questions.length) * 100)}%
+                    </div>
+                    <p className="text-gray-600 mb-8">
+                      您答对了 {correctCount} / {quizData.questions.length} 道题目
+                    </p>
+
+                    <div className="flex justify-center space-x-4">
+                      <Button
+                        onClick={restartQuiz}
+                        variant="outline"
+                        size="lg"
+                        className="px-6 py-3"
+                      >
+                        <RotateCcw className="h-5 w-5 mr-2" />
+                        重新开始
+                      </Button>
+                      <Button
+                        onClick={backToParsingPage}
+                        size="lg"
+                        className="px-6 py-3"
+                      >
+                        <ArrowRight className="h-5 w-5 mr-2" />
+                        返回首页
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 题库标题命名对话框 */}
         <Dialog open={showTitleDialog} onOpenChange={setShowTitleDialog}>
-          <DialogContent className="swordsman-card max-w-md">
+          <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle className="flex items-center text-xl">
                 <FileText className="h-6 w-6 mr-3" />
@@ -1014,33 +1285,49 @@ export function SmartParsingPage() {
                   value={quizTitle}
                   onChange={(e) => setQuizTitle(e.target.value)}
                   placeholder="请输入题库标题，如：JavaScript基础测试"
-                  className="swordsman-input h-12 text-lg"
+                  className="h-12 text-lg"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <Label htmlFor="quiz-description" className="text-lg font-medium">
+                  题库描述（可选）
+                </Label>
+                <Input
+                  id="quiz-description"
+                  value={quizDescription}
+                  onChange={(e) => setQuizDescription(e.target.value)}
+                  placeholder="请输入题库描述，如：用于测试JavaScript基础知识"
+                  className="h-12 text-lg"
                 />
               </div>
               
               <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                 <h4 className="font-medium text-blue-900 mb-2">题库信息</h4>
                 <div className="space-y-1 text-sm text-blue-700">
-                  <p>• 题目数量：{parsedQuestions.length} 道</p>
+                  <p>• 题目数量：{quizData?.totalQuestions || parsedQuestions.length || 0} 道</p>
                   <p>• 出题方式：{userChoice}</p>
                   <p>• 文件格式：HTML（可直接在浏览器中打开）</p>
+                  {quizData && (
+                    <p>• 题库标题：{quizData.title}</p>
+                  )}
                 </div>
               </div>
 
-              <div className="flex space-x-3">
+              <div className="space-y-3">
+                <Button
+                  onClick={downloadQuizHtml}
+                  disabled={!quizTitle.trim()}
+                  className="w-full h-12"
+                >
+                  下载HTML文件
+                </Button>
                 <Button
                   variant="outline"
                   onClick={() => setShowTitleDialog(false)}
-                  className="flex-1 h-12"
+                  className="w-full h-12"
                 >
                   取消
-                </Button>
-                <Button
-                  onClick={handleSaveTitleAndGenerate}
-                  disabled={!quizTitle.trim()}
-                  className="swordsman-button flex-1 h-12"
-                >
-                  生成题库
                 </Button>
               </div>
             </div>

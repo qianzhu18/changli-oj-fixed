@@ -85,8 +85,8 @@ export function QuizPreview({ htmlContent, title, onDownload, onClose }: QuizPre
             <div className="flex items-center space-x-3">
               <Eye className="h-6 w-6 text-blue-600" />
               <div>
-                <CardTitle className="text-xl">题库预览</CardTitle>
-                <p className="text-sm text-gray-600 mt-1">{title}</p>
+                <CardTitle className="text-xl">🎯 互动刷题界面</CardTitle>
+                <p className="text-sm text-gray-600 mt-1">{title} • 支持实时答题和错误反馈</p>
               </div>
             </div>
             
@@ -162,10 +162,10 @@ export function QuizPreview({ htmlContent, title, onDownload, onClose }: QuizPre
               {previewMode === 'desktop' ? '桌面端' : previewMode === 'tablet' ? '平板端' : '手机端'}
             </Badge>
             <Badge variant="outline" className="text-xs">
-              HTML 刷题网页
+              交互式刷题网页
             </Badge>
             <span className="text-xs text-gray-500">
-              实时预览 • 支持交互测试
+              可直接答题 • 实时反馈 • 错误引导
             </span>
           </div>
         </CardHeader>

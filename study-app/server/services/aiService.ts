@@ -1,5 +1,6 @@
 import { GeminiProvider } from '../providers/GeminiProvider';
 import { TwoAPIProvider } from '../providers/TwoAPIProvider';
+import { LocalProvider } from '../providers/LocalProvider';
 import { IAiProvider, QuizGenerationOptions, ValidationResult } from '../interfaces/IAiProvider';
 
 export class AiService {
@@ -46,6 +47,9 @@ export class AiService {
         provider = new TwoAPIProvider({
           model: config.model || 'gemini-2.5-pro-preview-06-05'
         });
+        break;
+      case 'local':
+        provider = new LocalProvider();
         break;
       default:
         throw new Error(`Unsupported AI provider: ${config.provider}`);

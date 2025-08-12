@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>题库解析器测试</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-8">前端题库解析器测试</h1>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- 输入区域 -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold mb-4">输入题库内容</h2>
+                <textarea 
+                    id="quiz-input" 
+                    class="w-full h-96 p-4 border rounded-lg font-mono text-sm"
+                    placeholder="请输入题库内容..."
+                >JavaScript基础知识测试题库
+
+1. JavaScript是什么类型的编程语言？
+编译型语言
+解释型语言
+汇编语言
+机器语言
+。解释型语言
+
+2. 下列哪个关键字用于声明变量？
+var
+let
+const
+以上都是
+。以上都是
+
+3. JavaScript中的数据类型包括哪些？
+Number, String, Boolean
+Object, Array, Function
+undefined, null
+以上都是
+。以上都是
+
+4. 请写出声明一个变量的语句：
+。var x;
+
+5. JavaScript中表示空值的关键字是什么？
+。null</textarea>
+                
+                <div class="mt-4 space-y-2">
+                    <button 
+                        onclick="parseQuiz()" 
+                        class="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600"
+                    >
+                        解析题库
+                    </button>
+                    <button 
+                        onclick="generateHtml()" 
+                        class="w-full bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600"
+                    >
+                        生成HTML
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 输出区域 -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold mb-4">解析结果</h2>
+                <div id="output" class="h-96 overflow-y-auto bg-gray-50 p-4 rounded-lg">
+                    <p class="text-gray-500">点击"解析题库"查看结果</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 生成的HTML预览 -->
+        <div id="html-preview" class="mt-8 bg-white rounded-lg shadow p-6 hidden">
+            <h2 class="text-xl font-semibold mb-4">生成的HTML</h2>
+            <textarea id="html-output" class="w-full h-64 p-4 border rounded-lg font-mono text-xs" readonly></textarea>
+            <button 
+                onclick="downloadHtml()" 
+                class="mt-4 bg-purple-500 text-white py-2 px-4 rounded-lg hover:bg-purple-600"
+            >
+                下载HTML文件
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 题库解析器类
+        class QuizParser {
+            static parseQuizContent(content) {
+                const lines = content.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+                const questions = [];
+                let currentQuestion = {};
+                let questionCounter = 0;
+                let title = "智能题库";
+
+                // 提取标题
+                if (lines.length > 0 && !this.isQuestionLine(lines[0])) {
+                    title = lines[0];
+                    lines.shift();
+                }
+
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+
+                    if (this.isQuestionLine(line)) {
+                        // 保存上一题
+                        if (currentQuestion.question) {
+                            this.finalizeQuestion(currentQuestion, questions, questionCounter);
+                            questionCounter++;
+                        }
+
+                        // 开始新题
+                        currentQuestion = {
+                            id: `q_${questionCounter + 1}`,
+                            question: this.extractQuestion(line),
+                            options: [],
+                            type: 'multiple-choice'
+                        };
+                    } else if (this.isOptionLine(line)) {
+                        if (currentQuestion.options) {
+                            currentQuestion.options.push(this.extractOption(line));
+                        }
+                    } else if (this.isAnswerLine(line)) {
+                        const answerInfo = this.extractAnswer(line, currentQuestion.options || []);
+                        currentQuestion.correctAnswer = answerInfo.index;
+                        currentQuestion.explanation = answerInfo.explanation;
+                    }
+                }
+
+                // 保存最后一题
+                if (currentQuestion.question) {
+                    this.finalizeQuestion(currentQuestion, questions, questionCounter);
+                }
+
+                return {
+                    title,
+                    questions,
+                    totalQuestions: questions.length
+                };
+            }
+
+            static isQuestionLine(line) {
+                return /^\d+[.、]\s*.+/.test(line);
+            }
+
+            static isOptionLine(line) {
+                // 不再依赖A/B/C/D标签，而是检测是否为选项行
+                return !this.isQuestionLine(line) && !this.isAnswerLine(line) && line.length > 0;
+            }
+
+            static isAnswerLine(line) {
+                return line.startsWith('。');
+            }
+
+            static extractQuestion(line) {
+                return line.replace(/^\d+[.、]\s*/, '').trim();
+            }
+
+            static extractOption(line) {
+                return line.trim();
+            }
+
+            static extractAnswer(line, options) {
+                const answerText = line.replace(/^。\s*/, '').trim();
+
+                // 直接在选项中查找匹配的答案
+                for (let i = 0; i < options.length; i++) {
+                    if (options[i] === answerText || answerText.includes(options[i]) || options[i].includes(answerText)) {
+                        return {
+                            index: i,
+                            explanation: answerText
+                        };
+                    }
+                }
+
+                // 如果没有找到匹配的选项，可能是填空题
+                return { index: 0, explanation: answerText };
+            }
+
+            static finalizeQuestion(currentQuestion, questions, questionCounter) {
+                if (!currentQuestion.question) return;
+
+                if (!currentQuestion.options || currentQuestion.options.length === 0) {
+                    currentQuestion.type = 'fill-blank';
+                    currentQuestion.options = [];
+                    currentQuestion.correctAnswer = 0;
+                }
+
+                if (currentQuestion.correctAnswer === undefined) {
+                    currentQuestion.correctAnswer = 0;
+                }
+
+                questions.push({
+                    id: currentQuestion.id || `q_${questionCounter + 1}`,
+                    question: currentQuestion.question,
+                    options: currentQuestion.options || [],
+                    correctAnswer: currentQuestion.correctAnswer,
+                    type: currentQuestion.type || 'multiple-choice',
+                    explanation: currentQuestion.explanation
+                });
+            }
+        }
+
+        let currentQuizData = null;
+
+        function parseQuiz() {
+            const input = document.getElementById('quiz-input').value;
+            const output = document.getElementById('output');
+            
+            try {
+                currentQuizData = QuizParser.parseQuizContent(input);
+                
+                let html = `<div class="space-y-4">`;
+                html += `<h3 class="font-bold text-lg">${currentQuizData.title}</h3>`;
+                html += `<p class="text-sm text-gray-600">共解析出 ${currentQuizData.totalQuestions} 道题目</p>`;
+                
+                currentQuizData.questions.forEach((question, index) => {
+                    html += `
+                        <div class="border rounded-lg p-4 bg-white">
+                            <h4 class="font-semibold mb-2">题目 ${index + 1}</h4>
+                            <p class="mb-2">${question.question}</p>
+                            <div class="text-sm space-y-1">
+                                ${question.options.map((option, i) => `
+                                    <div class="${i === question.correctAnswer ? 'text-green-600 font-medium' : 'text-gray-600'}">
+                                        ${String.fromCharCode(65 + i)}. ${option}
+                                        ${i === question.correctAnswer ? ' ✓' : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `</div>`;
+                output.innerHTML = html;
+                
+            } catch (error) {
+                output.innerHTML = `<div class="text-red-600">解析错误: ${error.message}</div>`;
+            }
+        }
+
+        function generateHtml() {
+            if (!currentQuizData) {
+                alert('请先解析题库');
+                return;
+            }
+            
+            const htmlContent = generateQuizHtml(currentQuizData);
+            document.getElementById('html-output').value = htmlContent;
+            document.getElementById('html-preview').classList.remove('hidden');
+        }
+
+        function generateQuizHtml(quizData) {
+            return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${quizData.title}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen p-4">
+    <div class="max-w-2xl mx-auto">
+        <h1 class="text-3xl font-bold text-center mb-8">${quizData.title}</h1>
+        <div id="quiz-container">
+            <!-- 题目将通过JavaScript动态加载 -->
+        </div>
+    </div>
+    
+    <script>
+        const questions = ${JSON.stringify(quizData.questions)};
+        let currentIndex = 0;
+        let userAnswers = {};
+        
+        function renderQuestion() {
+            const question = questions[currentIndex];
+            const container = document.getElementById('quiz-container');
+            
+            let html = \`
+                <div class="bg-white rounded-lg shadow p-6 mb-6">
+                    <div class="mb-4">
+                        <span class="text-sm text-gray-500">题目 \${currentIndex + 1} / \${questions.length}</span>
+                    </div>
+                    <h2 class="text-xl mb-6">\${question.question}</h2>
+                    <div class="space-y-3">
+            \`;
+            
+            question.options.forEach((option, index) => {
+                const isSelected = userAnswers[question.id] === index;
+                const isCorrect = index === question.correctAnswer;
+                const isAnswered = userAnswers.hasOwnProperty(question.id);
+                
+                let buttonClass = 'w-full text-left p-4 border rounded-lg transition-colors ';
+                if (isAnswered) {
+                    if (isCorrect) {
+                        buttonClass += 'bg-green-100 border-green-500 text-green-800';
+                    } else if (isSelected) {
+                        buttonClass += 'bg-red-100 border-red-500 text-red-800';
+                    } else {
+                        buttonClass += 'bg-gray-50 border-gray-200';
+                    }
+                } else {
+                    buttonClass += 'hover:bg-blue-50 border-gray-200 cursor-pointer';
+                }
+                
+                html += \`
+                    <button class="\${buttonClass}" onclick="selectAnswer(\${index})" \${isAnswered ? 'disabled' : ''}>
+                        <span class="font-medium mr-3">\${index + 1}.</span>
+                        \${option}
+                    </button>
+                \`;
+            });
+            
+            html += \`
+                    </div>
+                    <div class="flex justify-between mt-6">
+                        <button onclick="prevQuestion()" \${currentIndex === 0 ? 'disabled' : ''} 
+                                class="px-4 py-2 bg-gray-500 text-white rounded disabled:opacity-50">
+                            上一题
+                        </button>
+                        <button onclick="nextQuestion()" 
+                                class="px-4 py-2 bg-blue-500 text-white rounded">
+                            \${currentIndex === questions.length - 1 ? '完成' : '下一题'}
+                        </button>
+                    </div>
+                </div>
+            \`;
+            
+            container.innerHTML = html;
+        }
+        
+        function selectAnswer(optionIndex) {
+            userAnswers[questions[currentIndex].id] = optionIndex;
+            renderQuestion();
+        }
+        
+        function nextQuestion() {
+            if (currentIndex < questions.length - 1) {
+                currentIndex++;
+                renderQuestion();
+            } else {
+                showResults();
+            }
+        }
+        
+        function prevQuestion() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                renderQuestion();
+            }
+        }
+        
+        function showResults() {
+            let correct = 0;
+            questions.forEach(question => {
+                if (userAnswers[question.id] === question.correctAnswer) {
+                    correct++;
+                }
+            });
+            
+            const container = document.getElementById('quiz-container');
+            container.innerHTML = \`
+                <div class="bg-white rounded-lg shadow p-8 text-center">
+                    <h2 class="text-2xl font-bold mb-4">测试完成！</h2>
+                    <div class="text-4xl font-bold text-blue-600 mb-2">\${correct}/\${questions.length}</div>
+                    <div class="text-gray-600 mb-6">正确率: \${Math.round(correct/questions.length*100)}%</div>
+                    <button onclick="restart()" class="px-6 py-3 bg-blue-500 text-white rounded-lg">
+                        重新开始
+                    </button>
+                </div>
+            \`;
+        }
+        
+        function restart() {
+            currentIndex = 0;
+            userAnswers = {};
+            renderQuestion();
+        }
+        
+        // 初始化
+        renderQuestion();
+    </script>
+</body>
+</html>`;
+        }
+
+        function downloadHtml() {
+            const htmlContent = document.getElementById('html-output').value;
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentQuizData.title}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
