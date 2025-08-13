@@ -5,7 +5,7 @@ import { useEffect, useState } from "react"
 
 interface ClientThemeProviderProps {
   children: React.ReactNode
-  attribute?: string
+  attribute?: "class" | "data-theme" | "data-mode"
   defaultTheme?: string
   enableSystem?: boolean
   disableTransitionOnChange?: boolean

@@ -91,9 +91,9 @@ class MigrationValidator {
     logger.info('验证数据统计...');
 
     // MongoDB统计
-    const mongoUserCount = await mongoose.connection.db.collection('users').countDocuments();
-    const mongoQuizCount = await mongoose.connection.db.collection('quizzes').countDocuments();
-    const mongoJobCount = await mongoose.connection.db.collection('jobs').countDocuments();
+    const mongoUserCount = await mongoose.connection.db!.collection('users').countDocuments();
+    const mongoQuizCount = await mongoose.connection.db!.collection('quizzes').countDocuments();
+    const mongoJobCount = await mongoose.connection.db!.collection('jobs').countDocuments();
 
     // Prisma统计
     const prismaUserCount = await this.prisma.user.count();
