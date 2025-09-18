@@ -40,7 +40,7 @@ const upload = multer({
     if (FileParserService.isSupportedFileType(file.originalname, file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error(`不支持的文件类型。支持的格式: .txt, .md, .doc, .docx, .xls, .xlsx, .pdf, .csv`));
+      cb(new Error('当前仅支持上传纯文本题库（.txt 或 .md）。'));
     }
   },
 });

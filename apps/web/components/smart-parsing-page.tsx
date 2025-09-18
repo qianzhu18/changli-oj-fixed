@@ -61,13 +61,8 @@ export function SmartParsingPageSimple() {
 
   // 支持的文件格式
   const supportedFormats = [
-    { ext: 'docx', icon: FileText },
-    { ext: 'doc', icon: FileText },
-    { ext: 'xlsx', icon: FileText },
-    { ext: 'xls', icon: FileText },
     { ext: 'txt', icon: FileText },
-    { ext: 'md', icon: FileText },
-    { ext: 'pdf', icon: FileText }
+    { ext: 'md', icon: FileText }
   ]
 
   // 解析题库内容并生成题目 - 增强版
@@ -272,7 +267,7 @@ export function SmartParsingPageSimple() {
       setLoadingMessage("")
     } catch (error) {
       console.error('文件解析失败:', error)
-      setError('文件解析失败，请检查文件格式是否正确')
+      setError(error instanceof Error ? error.message : '文件解析失败，请检查文件格式是否正确')
       setIsParsingFile(false)
       setLoadingMessage("")
     }
@@ -353,7 +348,7 @@ export function SmartParsingPageSimple() {
 
     } catch (error) {
       console.error('❌ 获取提示失败:', error)
-      setError('连接失败，请重试')
+      setError(error instanceof Error ? error.message : '连接失败，请重试')
       setIsLoading(false)
     }
   }
@@ -736,7 +731,7 @@ export function SmartParsingPageSimple() {
                         <div>
                           <p className="text-lg md:text-xl font-semibold text-gray-800 mb-2">点击上传或拖拽文件到此处</p>
                           <p className="text-sm md:text-base text-gray-600 mb-4">
-                            支持 Word (.docx/.doc)、Excel (.xlsx/.xls)、文本 (.txt/.md)、PDF (.pdf)
+                            当前仅支持纯文本题库 (.txt / .md)
                           </p>
                           <p className="text-xs md:text-sm text-gray-500">
                             文件大小限制：{maxFileSize / 1024 / 1024}MB
@@ -761,7 +756,7 @@ export function SmartParsingPageSimple() {
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept=".docx,.doc,.xlsx,.xls,.txt,.md,.pdf"
+                      accept=".txt,.md"
                       onChange={handleFileUpload}
                       className="hidden"
                     />

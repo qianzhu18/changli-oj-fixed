@@ -80,7 +80,7 @@ class ConfigManager {
       },
       
       database: {
-        url: process.env.DATABASE_URL || 'file:./prisma/dev.db',
+        url: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/quiz',
         type: this.getDatabaseType(),
       },
       
@@ -106,7 +106,7 @@ class ConfigManager {
       
       upload: {
         maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760'), // 10MB
-        allowedTypes: ['.txt', '.md', '.doc', '.docx', '.xls', '.xlsx', '.pdf', '.csv'],
+        allowedTypes: ['.txt', '.md'],
         uploadDir: process.env.UPLOAD_DIR || './uploads',
       },
       
@@ -125,10 +125,11 @@ class ConfigManager {
     const dbUrl = process.env.DATABASE_URL || '';
     if (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://')) {
       return 'postgresql';
-    } else if (dbUrl.startsWith('mysql://')) {
+    }
+    if (dbUrl.startsWith('mysql://')) {
       return 'mysql';
     }
-    return 'sqlite';
+    return 'postgresql';
   }
 
   /**
@@ -156,6 +157,13 @@ class ConfigManager {
       } else {
         warnings.push('未设置 GEMINI_API_KEY，AI功能将不可用');
       }
+    }
+
+    // 验证数据库配置
+    if (!this.config.database.url) {
+      errors.push('必须配置 DATABASE_URL 才能连接数据库 (例如 Supabase Postgres)');
+    } else if (this.config.database.type !== 'postgresql') {
+      warnings.push(`检测到数据库类型为 ${this.config.database.type}，推荐使用 Postgres (Supabase)。`);
     }
 
     // 验证端口

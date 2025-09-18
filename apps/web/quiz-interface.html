@@ -322,9 +322,9 @@
                 <div class="upload-area" onclick="document.getElementById('fileInput').click()">
                     <div class="upload-icon">📁</div>
                     <div class="upload-text">点击上传题库文件</div>
-                    <div class="upload-hint">支持 Word (.docx/.doc)、Excel (.xlsx/.xls)、文本 (.txt/.md)、PDF (.pdf) 格式</div>
+                    <div class="upload-hint">当前仅支持纯文本题库 (.txt/.md)</div>
                 </div>
-                <input type="file" id="fileInput" accept=".docx,.doc,.xlsx,.xls,.txt,.md,.pdf" />
+                <input type="file" id="fileInput" accept=".txt,.md" />
             </div>
 
             <!-- 题目显示区域 -->
@@ -968,7 +968,7 @@
             uploadArea.innerHTML = `
                 <div class="upload-icon">📁</div>
                 <div class="upload-text">点击上传题库文件</div>
-                <div class="upload-hint">支持 Word (.docx/.doc)、Excel (.xlsx/.xls)、文本 (.txt/.md)、PDF (.pdf) 格式</div>
+                <div class="upload-hint">当前仅支持纯文本题库 (.txt/.md)</div>
             `;
         }
     </script>

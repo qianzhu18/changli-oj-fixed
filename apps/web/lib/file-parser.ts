@@ -1,5 +1,5 @@
 // 文件解析工具类
-// 支持 Word (.docx/.doc)、Excel (.xlsx/.xls)、PDF (.pdf)、文本 (.txt/.md) 文件
+// 当前仅支持纯文本格式 (.txt/.md)
 
 export class FileParser {
   
@@ -15,17 +15,8 @@ export class FileParser {
       case 'txt':
       case 'md':
         return await this.parseTextFile(file)
-      case 'docx':
-        return await this.parseDocxFile(file)
-      case 'doc':
-        return await this.parseDocFile(file)
-      case 'xlsx':
-      case 'xls':
-        return await this.parseExcelFile(file)
-      case 'pdf':
-        return await this.parsePdfFile(file)
       default:
-        throw new Error(`不支持的文件格式: ${fileExtension}`)
+        throw new Error('当前仅支持纯文本题库（.txt 或 .md），请先将文件另存为文本后再上传。')
     }
   }
 
@@ -215,16 +206,8 @@ export class FileParser {
       case 'txt':
       case 'md':
         return 'text'
-      case 'docx':
-      case 'doc':
-        return 'word'
-      case 'xlsx':
-      case 'xls':
-        return 'excel'
-      case 'pdf':
-        return 'pdf'
       default:
-        return 'unknown'
+        return 'unsupported'
     }
   }
 
@@ -232,7 +215,7 @@ export class FileParser {
    * 验证文件是否支持
    */
   static isSupported(file: File): boolean {
-    const supportedExtensions = ['txt', 'md', 'docx', 'doc', 'xlsx', 'xls', 'pdf']
+    const supportedExtensions = ['txt', 'md']
     const extension = file.name.toLowerCase().split('.').pop()
     return supportedExtensions.includes(extension || '')
   }

@@ -31,26 +31,6 @@ export class FileParserService {
       };
 
       switch (fileExtension.toLowerCase()) {
-        case 'docx':
-        case 'doc':
-          const docResult = await this.parseWordDocument(fileBuffer);
-          text = docResult.text;
-          metadata.wordCount = this.countWords(text);
-          break;
-
-        case 'xlsx':
-        case 'xls':
-          text = await this.parseExcelFile(fileBuffer);
-          metadata.wordCount = this.countWords(text);
-          break;
-
-        case 'pdf':
-          const pdfResult = await this.parsePdfFile(fileBuffer);
-          text = pdfResult.text;
-          metadata.pageCount = pdfResult.pageCount;
-          metadata.wordCount = this.countWords(text);
-          break;
-
         case 'txt':
           text = fileBuffer.toString('utf-8');
           metadata.wordCount = this.countWords(text);
@@ -61,13 +41,8 @@ export class FileParserService {
           metadata.wordCount = this.countWords(text);
           break;
 
-        case 'csv':
-          text = await this.parseCsvFile(fileBuffer);
-          metadata.wordCount = this.countWords(text);
-          break;
-
         default:
-          throw new Error(`不支持的文件格式: ${fileExtension}`);
+          throw new Error('当前版本仅支持纯文本题库（.txt / .md）。');
       }
 
       return {
@@ -75,7 +50,26 @@ export class FileParserService {
         metadata
       };
     } catch (error) {
-      throw new Error(`文件解析失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      const baseMessage = error instanceof Error ? error.message : '未知错误';
+      let hint = '';
+
+      switch (fileExtension.toLowerCase()) {
+        case 'pdf':
+          hint = '请确认 PDF 未加密或扫描，可尝试导出为 Word/TXT 后重新上传。';
+          break;
+        case 'doc':
+        case 'docx':
+          hint = '请确认 Word 文档未损坏，可先另存为新的 DOCX 再上传。';
+          break;
+        case 'xls':
+        case 'xlsx':
+          hint = '请检查表格是否包含题号、题目、选项、答案等列，可尝试导出为 CSV 再试。';
+          break;
+        default:
+          hint = '请检查文件内容是否为纯文本题库格式。';
+      }
+
+      throw new Error(`文件解析失败: ${baseMessage}${hint ? ` (${hint})` : ''}`);
     }
   }
 
@@ -99,19 +93,58 @@ export class FileParserService {
       const workbook = XLSX.read(buffer, { type: 'buffer' });
       let allText = '';
 
-      // 遍历所有工作表
       workbook.SheetNames.forEach(sheetName => {
         const worksheet = workbook.Sheets[sheetName];
         const sheetData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        
-        // 将每行数据转换为文本
-        sheetData.forEach((row: any) => {
-          if (Array.isArray(row)) {
-            const rowText = row.filter(cell => cell !== null && cell !== undefined).join(' ');
-            if (rowText.trim()) {
-              allText += rowText + '\n';
-            }
+
+        sheetData.forEach((row: any, index: number) => {
+          if (!Array.isArray(row)) {
+            return;
           }
+
+          // 跳过表头（常见表头以“题号”或“编号”开头）
+          const firstCell = (row[0] ?? '').toString().trim();
+          if (index === 0 && /^(题号|编号|序号)$/i.test(firstCell)) {
+            return;
+          }
+
+          if (!firstCell) {
+            return;
+          }
+
+          const questionNumber = firstCell.replace(/[^0-9]/g, '');
+          const questionText = (row[1] ?? '').toString().trim();
+          const options = row.slice(2, 6).map((cell: any) => (cell ?? '').toString().trim()).filter(Boolean);
+          const answerCell = (row[6] ?? '').toString().trim();
+          const explanation = (row[7] ?? '').toString().trim();
+
+          if (!questionText) {
+            return;
+          }
+
+          const labels = ['A', 'B', 'C', 'D'];
+          let block = '';
+
+          if (questionNumber) {
+            block += `${questionNumber}. ${questionText}\n`;
+          } else {
+            block += `${questionText}\n`;
+          }
+
+          options.forEach((opt, idx) => {
+            const label = labels[idx] || String.fromCharCode(65 + idx);
+            block += `${label}. ${opt}\n`;
+          });
+
+          if (answerCell) {
+            block += `答案：${answerCell}\n`;
+          }
+
+          if (explanation) {
+            block += `解析：${explanation}\n`;
+          }
+
+          allText += `${block}\n`;
         });
       });
 
@@ -192,17 +225,10 @@ export class FileParserService {
    * 验证文件类型是否支持
    */
   static isSupportedFileType(fileName: string, mimeType: string): boolean {
-    const supportedExtensions = ['docx', 'doc', 'xlsx', 'xls', 'pdf', 'txt', 'md', 'csv'];
+    const supportedExtensions = ['txt', 'md'];
     const supportedMimeTypes = [
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/vnd.ms-excel',
-      'application/pdf',
       'text/plain',
-      'text/markdown',
-      'text/csv',
-      'application/csv'
+      'text/markdown'
     ];
 
     const extension = fileName.split('.').pop()?.toLowerCase();
