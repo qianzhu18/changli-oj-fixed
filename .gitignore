@@ -27,6 +27,12 @@ prisma/dev.db
 logs
 *.log
 
+# Coverage
+coverage/
+
+# Uploads (user content)
+uploads/
+
 # Backup files
 *-backup-*
 

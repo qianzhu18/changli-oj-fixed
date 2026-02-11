@@ -1,47 +1,53 @@
-# 使用官方 Node.js 运行时作为基础镜像
+# 前端 Dockerfile
 FROM node:22-slim AS base
-
-# 设置工作目录
-WORKDIR /app
 
 # 使用国内镜像降低依赖下载失败率
 ENV NPM_CONFIG_REGISTRY=https://registry.npmmirror.com
 
-# 复制 package.json 和 pnpm-lock.yaml（如果存在）
-COPY study-app/package*.json ./
-# 安装依赖
+# 安装依赖阶段
+FROM base AS deps
+WORKDIR /app
+
+# 复制package文件
+COPY package*.json ./
 RUN npm config set registry "$NPM_CONFIG_REGISTRY" \
     && npm config set fetch-retries 5 \
     && npm config set fetch-retry-mintimeout 20000 \
     && npm config set fetch-retry-maxtimeout 120000 \
-    && npm install --legacy-peer-deps
-
-# 复制应用源码
-COPY study-app/ .
+    && npm install --omit=dev --legacy-peer-deps
 
 # 构建阶段
 FROM base AS builder
-ENV NODE_ENV=production
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+# 构建应用
+ENV NEXT_TELEMETRY_DISABLED 1
 RUN npm run build
 
-# 生产阶段
-FROM node:22-slim AS runner
+# 运行阶段
+FROM base AS runner
 WORKDIR /app
 
-# 复制构建产物
+ENV NODE_ENV production
+ENV NEXT_TELEMETRY_DISABLED 1
+
 COPY --from=builder /app/public ./public
+
+# 设置正确的权限
+RUN mkdir .next
+RUN chown node:node .next
+
+# 复制构建产物
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 
-# 切换到非 root 用户
 USER node
 
-# 暴露端口
 EXPOSE 3002
 
-# 设置环境变量
-ENV PORT=3002
-ENV HOSTNAME="0.0.0.0"
+ENV PORT 3002
+ENV HOSTNAME "0.0.0.0"
 
-# 启动应用
-CMD ["node", "server.js"] 
+CMD ["node", "server.js"]

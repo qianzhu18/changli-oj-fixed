@@ -1,0 +1,64 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(dbgenerated("extensions.uuid_generate_v4()")) @db.Uuid
+  email     String    @unique @db.VarChar(255)
+  password  String    @map("password_hash") @db.VarChar(255)
+  name      String?   @db.VarChar(100)
+  avatar    String?   @db.VarChar(255)
+  isActive  Boolean?  @default(true) @map("is_active")
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  quizzes Quiz[]
+  jobs    Job[]
+
+  @@map("users")
+}
+
+model Quiz {
+  id          String    @id @default(dbgenerated("extensions.uuid_generate_v4()")) @db.Uuid
+  title       String    @db.VarChar(255)
+  description String?
+  orderMode   String?   @default("顺序") @map("order_mode_text") @db.VarChar(20)
+  status      String?   @default("pending") @db.VarChar(20)
+  html        String?
+  filePath    String?   @map("file_path")
+  errorMsg    String?   @map("error_msg")
+  createdAt   DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  userId String? @map("user_id") @db.Uuid
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  jobs   Job[]
+
+  @@index([userId], map: "idx_quizzes_user_id")
+  @@map("quizzes")
+}
+
+model Job {
+  id        String    @id @default(dbgenerated("extensions.uuid_generate_v4()")) @db.Uuid
+  type      String?   @db.VarChar(50)
+  status    String?   @db.VarChar(20)
+  progress  Int?      @default(0)
+  data      Json?
+  result    Json?
+  error     String?
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  userId String? @map("user_id") @db.Uuid
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  quizId String? @map("quiz_id") @db.Uuid
+  quiz   Quiz?   @relation(fields: [quizId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("jobs")
+}
