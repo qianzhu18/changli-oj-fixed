@@ -3,7 +3,15 @@
 const TOKEN_KEY = 'changli_token';
 const USER_KEY = 'changli_user';
 
-export function storeAuth(token: string, user: { id: string; email: string }) {
+export type ClientUserRole = 'user' | 'developer' | 'root';
+
+export type ClientUser = {
+  id?: string;
+  email: string;
+  role?: ClientUserRole;
+};
+
+export function storeAuth(token: string, user: ClientUser) {
   if (typeof window === 'undefined') return;
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(USER_KEY, JSON.stringify(user));
@@ -14,12 +22,12 @@ export function getToken() {
   return localStorage.getItem(TOKEN_KEY);
 }
 
-export function getStoredUser(): { id?: string; email: string } | null {
+export function getStoredUser(): ClientUser | null {
   if (typeof window === 'undefined') return null;
   const raw = localStorage.getItem(USER_KEY);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as { id: string; email: string };
+    return JSON.parse(raw) as ClientUser;
   } catch {
     return null;
   }

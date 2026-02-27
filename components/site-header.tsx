@@ -6,10 +6,11 @@ import { usePathname } from 'next/navigation';
 import { getStoredUser, logout } from '@/lib/client-auth';
 
 export function SiteHeader() {
-  const [user, setUser] = useState<{ email: string } | null>(null);
+  const [user, setUser] = useState<{ email: string; role?: 'user' | 'developer' | 'root' } | null>(null);
   const pathname = usePathname();
   const isAuthPage =
     pathname.startsWith('/login') || pathname.startsWith('/register') || pathname.startsWith('/auth');
+  const canAccessAdmin = user?.role === 'developer' || user?.role === 'root';
 
   useEffect(() => {
     setUser(getStoredUser());
@@ -43,9 +44,11 @@ export function SiteHeader() {
           <Link href="/wrong-questions" className={pathname.startsWith('/wrong-questions') ? 'tag' : ''}>
             错题本
           </Link>
-          <Link href="/admin" className={pathname.startsWith('/admin') ? 'tag' : ''}>
-            管理面板
-          </Link>
+          {canAccessAdmin ? (
+            <Link href="/admin" className={pathname.startsWith('/admin') ? 'tag' : ''}>
+              管理面板
+            </Link>
+          ) : null}
           {user ? (
             <button
               className="button secondary small-button"

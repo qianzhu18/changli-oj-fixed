@@ -82,7 +82,7 @@ export function InkWashAuth({ defaultTab = 'login' }: { defaultTab?: Tab }) {
       if (tab === 'login') {
         const data = await apiFetch<{
           token: string;
-          user: { id: string; email: string };
+          user: { id: string; email: string; role?: 'user' | 'developer' | 'root' };
         }>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
         storeAuth(data.token, data.user);
         window.location.href = '/';
@@ -91,7 +91,7 @@ export function InkWashAuth({ defaultTab = 'login' }: { defaultTab?: Tab }) {
 
       const data = await apiFetch<{
         token: string;
-        user: { id: string; email: string };
+        user: { id: string; email: string; role?: 'user' | 'developer' | 'root' };
       }>('/api/auth/register', { method: 'POST', body: JSON.stringify({ email, password, name }) });
       storeAuth(data.token, data.user);
       window.location.href = '/';

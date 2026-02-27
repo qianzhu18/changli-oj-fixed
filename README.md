@@ -54,8 +54,12 @@ REDIS_URL=redis://localhost:6379
 # Gemini API（AI 功能）
 GEMINI_API_KEY=你的API_Key
 
-# 管理员邮箱
-ADMIN_EMAILS=admin@example.com
+# 角色邮箱（逗号分隔）
+ROOT_EMAILS=root@example.com
+DEVELOPER_EMAILS=dev@example.com
+
+# 兼容旧配置（等同于 DEVELOPER_EMAILS）
+ADMIN_EMAILS=
 ```
 
 **获取外部服务：**
@@ -89,17 +93,17 @@ npm run worker
 - 管理面板：http://localhost:3003/admin
 - 注册页面：http://localhost:3003/register
 
-## 🔐 登录注册（邮箱验证码）
+## 🔐 登录注册（Supabase Auth）
 
-- 注册与登录都需要：`邮箱 + 密码 + 6位邮箱验证码`
-- 前端页面已内置“发送验证码”按钮与 60 秒冷却
-- 默认必须配置邮件服务，否则接口会返回错误
+- 注册：`邮箱 + 密码`（不需要邮箱验证码）
+- 登录：`邮箱 + 密码`
+- 忘记密码：通过 Supabase 邮件重置链接完成
 
-邮件配置（生产建议）：
+可选邮件配置（仅当你还要保留 `/api/auth/send-code` 验证码接口时）：
 ```bash
 RESEND_API_KEY=你的Resend密钥
 EMAIL_FROM=Changli OJ <noreply@你的域名>
-# 可选：仅本地临时调试时开启（会在服务端日志输出验证码）
+# 可选：仅本地临时调试验证码接口时开启（会在服务端日志输出验证码）
 ALLOW_DEV_CODE_FALLBACK=false
 ```
 
