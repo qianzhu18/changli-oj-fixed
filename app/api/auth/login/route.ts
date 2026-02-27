@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
-import { getSupabaseAdmin } from '@/lib/supabase';
-import { signToken } from '@/lib/auth';
-import { verifyEmailVerificationCode } from '@/lib/email-code';
+import { getSupabaseAdmin, getSupabaseAuthClient } from '@/lib/supabase';
+import { getUserRoleByEmail, signToken } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 
@@ -15,35 +13,61 @@ export async function POST(req: NextRequest) {
     if (!email || !password) {
       return NextResponse.json({ error: '邮箱和密码不能为空' }, { status: 400 });
     }
-    if (!code) {
-      return NextResponse.json({ error: '请输入邮箱验证码' }, { status: 400 });
+    if (code) {
+      // backward compatibility: allow clients still sending "code", but it is ignored now.
     }
 
-    const verifyResult = await verifyEmailVerificationCode(email, 'login', code);
-    if (!verifyResult.ok) {
-      return NextResponse.json({ error: verifyResult.error }, { status: 400 });
+    const authClient = getSupabaseAuthClient();
+    const { data: authData, error: authError } = await authClient.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (authError || !authData.user) {
+      return NextResponse.json({ error: '账号或密码错误' }, { status: 401 });
     }
 
     const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase
+    const { data: localUser, error: localErr } = await supabase
       .from('users')
-      .select('id, email, password_hash, is_active')
+      .select('id, email, is_active, name')
       .eq('email', email)
-      .single();
+      .maybeSingle();
 
-    if (error || !data) {
-      return NextResponse.json({ error: '账号或密码错误' }, { status: 401 });
+    if (localErr) {
+      return NextResponse.json({ error: localErr.message }, { status: 500 });
     }
-    const match = await bcrypt.compare(password, data.password_hash);
-    if (!match) {
-      return NextResponse.json({ error: '账号或密码错误' }, { status: 401 });
+
+    let user = localUser;
+    if (!user) {
+      const randomPassword = `supabase-auth-${authData.user.id}`;
+      const { data: inserted, error: insertErr } = await supabase
+        .from('users')
+        .insert({
+          email,
+          name: String(authData.user.user_metadata?.name || '').trim() || null,
+          password_hash: randomPassword,
+          is_active: true
+        })
+        .select('id, email, is_active, name')
+        .single();
+
+      if (insertErr || !inserted) {
+        return NextResponse.json(
+          { error: insertErr?.message || '创建用户资料失败' },
+          { status: 500 }
+        );
+      }
+      user = inserted;
     }
-    if (!data.is_active) {
+
+    if (!user.is_active) {
       return NextResponse.json({ error: '账号已停用，请联系管理员' }, { status: 403 });
     }
 
-    const token = await signToken({ userId: data.id, email: data.email });
-    return NextResponse.json({ token, user: { id: data.id, email: data.email } });
+    const role = getUserRoleByEmail(user.email);
+    const token = await signToken({ userId: user.id, email: user.email, role });
+    return NextResponse.json({ token, user: { id: user.id, email: user.email, role } });
   } catch (err) {
     return NextResponse.json({ error: '登录失败' }, { status: 500 });
   }
