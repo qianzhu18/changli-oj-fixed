@@ -10,10 +10,11 @@ const links = [
   { href: '/admin/stats', label: '数据统计' }
 ];
 
-export function AdminNav() {
+export function AdminNav({ variant = 'tabs' }: { variant?: 'tabs' | 'stack' }) {
   const pathname = usePathname();
+  const className = variant === 'stack' ? 'admin-nav-stack' : 'nav-tabs';
   return (
-    <nav className="nav-tabs">
+    <nav className={className}>
       {links.map((item) => (
         <Link
           key={item.href}
