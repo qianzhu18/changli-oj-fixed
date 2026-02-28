@@ -1,6 +1,6 @@
 const escconfig = {
   serverHost: "localhost", // 服务器地址
-  serverPort: 3000,// 服务器端口(运行环境下的端口)
+  serverPort: 3300,// 服务器端口(运行环境下的端口)
   oss: {
     enabled: true, // 是否启用 OSS
     domain: "https://miaowtest-test.oss-cn-beijing.aliyuncs.com", // OSS 访问域名，例如：https://your-bucket.oss-cn-hangzhou.aliyuncs.com

@@ -1,11 +1,41 @@
-// 阿里云 OSS 工具类（上传，流式上传，删除 OSS 上的文件，获取 OSS 文件的访问 URL，遍历）
+// 阿里云 OSS 工具类（支持 OSS 与本地存储双模式）
 const OSS = require('ali-oss');
 const fs = require('fs');
 const path = require('path');
 const ossConfig = require('../config/oss.config');
 
-// 初始化 OSS 客户端
-const client = new OSS(ossConfig);
+const useOSS = process.env.STORAGE_TYPE === 'oss';
+const publicRoot = path.join(__dirname, '../public');
+
+function normalizePath(filePath = '') {
+    return String(filePath).replace(/^\/+/, '').replace(/\\/g, '/');
+}
+
+function normalizePrefix(prefix = '') {
+    const p = String(prefix).replace(/^\/+|\/+$/g, '');
+    return p ? `${p}/` : '';
+}
+
+function buildRemotePath(filePath) {
+    return `${normalizePrefix(ossConfig.prefix)}${normalizePath(filePath)}`;
+}
+
+function toRelativeUrl(filePath) {
+    return `/${normalizePath(filePath)}`;
+}
+
+function toLocalAbsPath(filePath) {
+    return path.join(publicRoot, normalizePath(filePath));
+}
+
+function ensureParentDir(filePath) {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+}
+
+let client = null;
+if (useOSS) {
+    client = new OSS(ossConfig);
+}
 
 /**
  * 本地磁盘文件到 OSS上传文件到 OSS
@@ -15,23 +45,18 @@ const client = new OSS(ossConfig);
  */
 async function uploadFile(localFilePath, ossFilePath) {
     try {
-        // 添加存储前缀
-        const fullOssPath = ossConfig.prefix + ossFilePath;
-        
-        // 上传文件
-        const result = await client.put(fullOssPath, localFilePath); //fullOssPath 是上传到 OSS 中的路径，localFilePath 是本地文件的路径
-        
-        // 生成文件访问 URL
-        let fileUrl;
-        if (ossConfig.cdnDomain) {
-            // 使用 CDN 域名
-            fileUrl = `https://${ossConfig.cdnDomain}/${fullOssPath}`;
-        } else {
-            // 使用 OSS 原始域名
-            fileUrl = `https://${ossConfig.bucket}.${ossConfig.region}.aliyuncs.com/${fullOssPath}`;
+        const normalizedPath = normalizePath(ossFilePath);
+
+        if (!useOSS) {
+            const localDest = toLocalAbsPath(normalizedPath);
+            ensureParentDir(localDest);
+            await fs.promises.copyFile(localFilePath, localDest);
+            return toRelativeUrl(normalizedPath);
         }
-        
-        return fileUrl;
+
+        const fullOssPath = buildRemotePath(normalizedPath);
+        await client.put(fullOssPath, localFilePath);
+        return getFileUrl(normalizedPath);
     } catch (error) {
         console.error('OSS 上传文件失败:', error);
         throw error;
@@ -46,23 +71,24 @@ async function uploadFile(localFilePath, ossFilePath) {
  */
 async function uploadStream(stream, ossFilePath) {
     try {
-        // 添加存储前缀
-        const fullOssPath = ossConfig.prefix + ossFilePath;
-        
-        // 上传文件流
-        const result = await client.putStream(fullOssPath, stream);
-        
-        // 生成文件访问 URL
-        let fileUrl;
-        if (ossConfig.cdnDomain) {
-            // 使用 CDN 域名
-            fileUrl = `https://${ossConfig.cdnDomain}/${fullOssPath}`;
-        } else {
-            // 使用 OSS 原始域名
-            fileUrl = `https://${ossConfig.bucket}.${ossConfig.region}.aliyuncs.com/${fullOssPath}`;
+        const normalizedPath = normalizePath(ossFilePath);
+
+        if (!useOSS) {
+            const localDest = toLocalAbsPath(normalizedPath);
+            ensureParentDir(localDest);
+            await new Promise((resolve, reject) => {
+                const writeStream = fs.createWriteStream(localDest);
+                stream.pipe(writeStream);
+                stream.on('error', reject);
+                writeStream.on('error', reject);
+                writeStream.on('finish', resolve);
+            });
+            return toRelativeUrl(normalizedPath);
         }
-        
-        return fileUrl;
+
+        const fullOssPath = buildRemotePath(normalizedPath);
+        await client.putStream(fullOssPath, stream);
+        return getFileUrl(normalizedPath);
     } catch (error) {
         console.error('OSS 流式上传文件失败:', error);
         throw error;
@@ -77,23 +103,18 @@ async function uploadStream(stream, ossFilePath) {
  */
 async function uploadBuffer(buffer, ossFilePath) {
     try {
-        // 添加存储前缀
-        const fullOssPath = ossConfig.prefix + ossFilePath;
-        
-        // 上传 Buffer
-        const result = await client.put(fullOssPath, buffer);
-        
-        // 生成文件访问 URL
-        let fileUrl;
-        if (ossConfig.cdnDomain) {
-            // 使用 CDN 域名
-            fileUrl = `https://${ossConfig.cdnDomain}/${fullOssPath}`;
-        } else {
-            // 使用 OSS 原始域名
-            fileUrl = `https://${ossConfig.bucket}.${ossConfig.region}.aliyuncs.com/${fullOssPath}`;
+        const normalizedPath = normalizePath(ossFilePath);
+
+        if (!useOSS) {
+            const localDest = toLocalAbsPath(normalizedPath);
+            ensureParentDir(localDest);
+            await fs.promises.writeFile(localDest, buffer);
+            return toRelativeUrl(normalizedPath);
         }
-        
-        return fileUrl;
+
+        const fullOssPath = buildRemotePath(normalizedPath);
+        await client.put(fullOssPath, buffer);
+        return getFileUrl(normalizedPath);
     } catch (error) {
         console.error('OSS 上传 Buffer 失败:', error);
         throw error;
@@ -107,16 +128,48 @@ async function uploadBuffer(buffer, ossFilePath) {
  */
 async function deleteFile(ossFilePath) {
     try {
-        // 添加存储前缀
-        const fullOssPath = ossConfig.prefix + ossFilePath;
-        
-        // 删除文件
+        const normalizedPath = normalizePath(ossFilePath);
+
+        if (!useOSS) {
+            const localDest = toLocalAbsPath(normalizedPath);
+            if (fs.existsSync(localDest)) {
+                await fs.promises.unlink(localDest);
+            }
+            return true;
+        }
+
+        const fullOssPath = buildRemotePath(normalizedPath);
         await client.delete(fullOssPath);
         return true;
     } catch (error) {
         console.error('OSS 删除文件失败:', error);
         throw error;
     }
+}
+
+function extractPathFromUrl(fileUrl) {
+    if (!fileUrl) return '';
+
+    let filePath = String(fileUrl).trim();
+
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+        try {
+            filePath = new URL(filePath).pathname || '';
+        } catch (error) {
+            // ignore parse error and fallback to original value
+        }
+    }
+
+    filePath = normalizePath(filePath);
+
+    if (useOSS) {
+        const prefix = normalizePrefix(ossConfig.prefix);
+        if (prefix && filePath.startsWith(prefix)) {
+            filePath = filePath.slice(prefix.length);
+        }
+    }
+
+    return normalizePath(filePath);
 }
 
 /**
@@ -126,33 +179,8 @@ async function deleteFile(ossFilePath) {
  */
 async function deleteFileByUrl(fileUrl) {
     try {
-        // 移除 CDN 域名或 OSS 域名前缀，提取路径
-        let ossPath = fileUrl;
-        
-        // 如果是 CDN 域名
-        if (ossConfig.cdnDomain) {
-            const cdnHost = `https://${ossConfig.cdnDomain}/`;
-            if (ossPath.startsWith(cdnHost)) {
-                ossPath = ossPath.replace(cdnHost, '');
-            }
-        }
-        
-        // 如果是 OSS 原始域名
-        if (!ossPath.includes(ossConfig.prefix)) {
-            const ossHost = `https://${ossConfig.bucket}.${ossConfig.region}.aliyuncs.com/`;
-            if (ossPath.startsWith(ossHost)) {
-                ossPath = ossPath.replace(ossHost, '');
-            }
-        }
-        
-        // 移除存储前缀
-        if (ossConfig.prefix && ossPath.startsWith(ossConfig.prefix)) {
-            ossPath = ossPath.replace(ossConfig.prefix, '');
-        }
-
-        const result = await deleteFile(ossPath);
-        
-        return result;
+        const filePath = extractPathFromUrl(fileUrl);
+        return await deleteFile(filePath);
     } catch (error) {
         console.error('OSS 通过 URL 删除文件失败:', error);
         throw error;
@@ -165,9 +193,13 @@ async function deleteFileByUrl(fileUrl) {
  * @returns {string} - 文件访问 URL
  */
 function getFileUrl(ossFilePath) {
-    // 添加存储前缀
-    const fullOssPath = ossConfig.prefix + ossFilePath;
-    
+    const normalizedPath = normalizePath(ossFilePath);
+    if (!useOSS) {
+        return toRelativeUrl(normalizedPath);
+    }
+
+    const fullOssPath = buildRemotePath(normalizedPath);
+
     if (ossConfig.cdnDomain) {
         // 使用 CDN 域名
         return `https://${ossConfig.cdnDomain}/${fullOssPath}`;
@@ -212,6 +244,9 @@ function getAllFiles(dirPath) {
  */
 async function migrateDirToOSS(localDir, ossDir) {
     try {
+        if (!useOSS) {
+            throw new Error('migrateDirToOSS 仅在 STORAGE_TYPE=oss 时可用');
+        }
         const files = getAllFiles(localDir);
         const migrateResults = [];
         

@@ -17,6 +17,10 @@ const staticDirs = [
  * @param {Function} next - Express 下一个中间件函数
  */
 const ossStaticRedirect = (req, res, next) => {
+    if (process.env.STORAGE_TYPE !== 'oss') {
+        return next();
+    }
+
     // 获取请求路径
     const reqPath = req.originalUrl;
     
