@@ -4,8 +4,24 @@ const fs = require('fs');
 const path = require('path');
 const ossConfig = require('../config/oss.config');
 
-// 初始化 OSS 客户端
-const client = new OSS(ossConfig);
+const isOssEnabled = Boolean(
+    ossConfig.accessKeyId && ossConfig.accessKeySecret && ossConfig.bucket && ossConfig.region
+);
+const client = isOssEnabled ? new OSS(ossConfig) : null;
+
+if (!isOssEnabled) {
+    console.warn('OSS 未配置，已切换为本地调试模式（返回相对 URL）。');
+}
+
+function buildFileUrl(fullOssPath) {
+    if (!isOssEnabled) {
+        return `/${String(fullOssPath).replace(/^\/+/, '')}`;
+    }
+    if (ossConfig.cdnDomain) {
+        return `https://${ossConfig.cdnDomain}/${fullOssPath}`;
+    }
+    return `https://${ossConfig.bucket}.${ossConfig.region}.aliyuncs.com/${fullOssPath}`;
+}
 
 /**
  * 本地磁盘文件到 OSS上传文件到 OSS
@@ -17,21 +33,14 @@ async function uploadFile(localFilePath, ossFilePath) {
     try {
         // 添加存储前缀
         const fullOssPath = ossConfig.prefix + ossFilePath;
+        if (!client) {
+            return buildFileUrl(fullOssPath);
+        }
         
         // 上传文件
         const result = await client.put(fullOssPath, localFilePath); //fullOssPath 是上传到 OSS 中的路径，localFilePath 是本地文件的路径
         
-        // 生成文件访问 URL
-        let fileUrl;
-        if (ossConfig.cdnDomain) {
-            // 使用 CDN 域名
-            fileUrl = `https://${ossConfig.cdnDomain}/${fullOssPath}`;
-        } else {
-            // 使用 OSS 原始域名
-            fileUrl = `https://${ossConfig.bucket}.${ossConfig.region}.aliyuncs.com/${fullOssPath}`;
-        }
-        
-        return fileUrl;
+        return buildFileUrl(fullOssPath);
     } catch (error) {
         console.error('OSS 上传文件失败:', error);
         throw error;
@@ -48,21 +57,14 @@ async function uploadStream(stream, ossFilePath) {
     try {
         // 添加存储前缀
         const fullOssPath = ossConfig.prefix + ossFilePath;
+        if (!client) {
+            return buildFileUrl(fullOssPath);
+        }
         
         // 上传文件流
         const result = await client.putStream(fullOssPath, stream);
         
-        // 生成文件访问 URL
-        let fileUrl;
-        if (ossConfig.cdnDomain) {
-            // 使用 CDN 域名
-            fileUrl = `https://${ossConfig.cdnDomain}/${fullOssPath}`;
-        } else {
-            // 使用 OSS 原始域名
-            fileUrl = `https://${ossConfig.bucket}.${ossConfig.region}.aliyuncs.com/${fullOssPath}`;
-        }
-        
-        return fileUrl;
+        return buildFileUrl(fullOssPath);
     } catch (error) {
         console.error('OSS 流式上传文件失败:', error);
         throw error;
@@ -79,21 +81,14 @@ async function uploadBuffer(buffer, ossFilePath) {
     try {
         // 添加存储前缀
         const fullOssPath = ossConfig.prefix + ossFilePath;
+        if (!client) {
+            return buildFileUrl(fullOssPath);
+        }
         
         // 上传 Buffer
         const result = await client.put(fullOssPath, buffer);
         
-        // 生成文件访问 URL
-        let fileUrl;
-        if (ossConfig.cdnDomain) {
-            // 使用 CDN 域名
-            fileUrl = `https://${ossConfig.cdnDomain}/${fullOssPath}`;
-        } else {
-            // 使用 OSS 原始域名
-            fileUrl = `https://${ossConfig.bucket}.${ossConfig.region}.aliyuncs.com/${fullOssPath}`;
-        }
-        
-        return fileUrl;
+        return buildFileUrl(fullOssPath);
     } catch (error) {
         console.error('OSS 上传 Buffer 失败:', error);
         throw error;
@@ -109,6 +104,9 @@ async function deleteFile(ossFilePath) {
     try {
         // 添加存储前缀
         const fullOssPath = ossConfig.prefix + ossFilePath;
+        if (!client) {
+            return true;
+        }
         
         // 删除文件
         await client.delete(fullOssPath);
@@ -126,6 +124,10 @@ async function deleteFile(ossFilePath) {
  */
 async function deleteFileByUrl(fileUrl) {
     try {
+        if (!client) {
+            return true;
+        }
+
         // 移除 CDN 域名或 OSS 域名前缀，提取路径
         let ossPath = fileUrl;
         
@@ -167,14 +169,8 @@ async function deleteFileByUrl(fileUrl) {
 function getFileUrl(ossFilePath) {
     // 添加存储前缀
     const fullOssPath = ossConfig.prefix + ossFilePath;
-    
-    if (ossConfig.cdnDomain) {
-        // 使用 CDN 域名
-        return `https://${ossConfig.cdnDomain}/${fullOssPath}`;
-    } else {
-        // 使用 OSS 原始域名
-        return `https://${ossConfig.bucket}.${ossConfig.region}.aliyuncs.com/${fullOssPath}`;
-    }
+
+    return buildFileUrl(fullOssPath);
 }
 
 /**

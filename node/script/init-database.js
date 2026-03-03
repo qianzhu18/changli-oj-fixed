@@ -18,6 +18,7 @@
  */
 const dbManager = require('../db/db.enhanced').dbManager;// 数据库连接管理
 const UserModel = require('../models/UserModel');
+const { hashPassword } = require('../helpers/passwordHelper');
 
 // 管理员账户信息
 const adminUser = {
@@ -66,8 +67,10 @@ async function createAdminUser() {
       return;
     }
 
-    // 创建新管理员
-    const newAdmin = await UserModel.create(adminUser);
+    const newAdmin = await UserModel.create({
+      ...adminUser,
+      password: await hashPassword(adminUser.password)
+    });
     console.log('✅ 管理员账户创建成功:');
     console.log(`   用户名: ${newAdmin.username}`);
     console.log(`   密码: ${adminUser.password}`);

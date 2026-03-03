@@ -16,6 +16,12 @@ const routes = [
     name: 'mainbox',
     component: Mainbox,
   },
+  {
+    // 兜底路由：避免动态路由注入前直达子路径产生 no-match 警告
+    path: '/:pathMatch(.*)*',
+    name: 'bootstrap-fallback',
+    component: Mainbox
+  }
 
 ]
 

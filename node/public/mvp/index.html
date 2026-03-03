@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Changli OJ MVP Web</title>
+    <link rel="stylesheet" href="/mvp/styles.css" />
+  </head>
+  <body>
+    <div class="bg-layer"></div>
+    <main class="app-shell">
+      <header class="hero">
+        <div>
+          <h1>Changli OJ MVP</h1>
+          <p>Web First 最小可用版：登录、刷题、错题、进度、后台发布。</p>
+        </div>
+        <div class="port-chip">Debug Port: <strong>3002</strong></div>
+      </header>
+
+      <section class="panel" id="auth-panel">
+        <h2>用户登录 / 注册</h2>
+        <div class="grid-2">
+          <form id="login-form" class="card">
+            <h3>登录</h3>
+            <label>账号</label>
+            <input name="account" placeholder="邮箱或用户名" required />
+            <label>密码</label>
+            <input name="password" type="password" placeholder="******" required />
+            <button type="submit" class="btn primary">登录</button>
+          </form>
+
+          <form id="register-form" class="card">
+            <h3>注册</h3>
+            <label>账号</label>
+            <input name="account" placeholder="邮箱或用户名" required />
+            <label>密码</label>
+            <input name="password" type="password" placeholder="至少6位" required />
+            <button type="submit" class="btn">注册</button>
+          </form>
+        </div>
+        <p id="auth-message" class="hint"></p>
+      </section>
+
+      <section class="panel hidden" id="learner-panel">
+        <div class="panel-head">
+          <h2>学生端 MVP</h2>
+          <div class="inline-actions">
+            <span id="profile-text" class="hint"></span>
+            <button id="logout-btn" class="btn ghost">退出登录</button>
+          </div>
+        </div>
+
+        <div class="grid-3">
+          <div class="card">
+            <h3>题库列表</h3>
+            <div id="quiz-list" class="list"></div>
+          </div>
+
+          <div class="card">
+            <h3>题型分组</h3>
+            <div id="section-list" class="list"></div>
+          </div>
+
+          <div class="card">
+            <h3>学习进度</h3>
+            <div id="progress-box" class="stat-box">请选择题库</div>
+          </div>
+        </div>
+
+        <div class="card mt-16">
+          <div class="panel-head">
+            <h3>刷题区</h3>
+            <div class="inline-actions">
+              <button id="prev-question" class="btn ghost">上一题</button>
+              <button id="next-question" class="btn ghost">下一题</button>
+            </div>
+          </div>
+          <div id="question-box" class="question-box">请选择题型加载题目</div>
+          <button id="submit-answer" class="btn primary mt-16">提交答案</button>
+          <p id="answer-result" class="hint"></p>
+        </div>
+
+        <div class="card mt-16">
+          <div class="panel-head">
+            <h3>错题列表</h3>
+            <button id="refresh-wrong" class="btn ghost">刷新错题</button>
+          </div>
+          <div id="wrong-list" class="list"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="admin-panel">
+        <h2>管理端 MVP（最小）</h2>
+        <form id="admin-login-form" class="card compact">
+          <h3>管理员登录</h3>
+          <div class="inline-form">
+            <input name="username" placeholder="admin" required />
+            <input name="password" type="password" placeholder="admin123" required />
+            <button type="submit" class="btn">登录后台</button>
+          </div>
+          <p id="admin-message" class="hint"></p>
+        </form>
+
+        <div id="admin-workspace" class="hidden">
+          <div class="grid-2 mt-16">
+            <form id="create-quiz-form" class="card">
+              <h3>新增题库（最小字段）</h3>
+              <label>名称</label>
+              <input name="name" required />
+              <label>编码</label>
+              <input name="code" required />
+              <label>年份</label>
+              <input name="year" value="2026" required />
+              <label>分类编号（默认 1）</label>
+              <input name="category" value="1" required />
+              <label>创建人</label>
+              <input name="creator" value="admin" required />
+              <label>考试日期</label>
+              <input name="day" type="date" required />
+              <button type="submit" class="btn primary">创建题库</button>
+            </form>
+
+            <div class="card">
+              <div class="panel-head">
+                <h3>题库发布管理</h3>
+                <button id="refresh-admin-quizzes" class="btn ghost">刷新</button>
+              </div>
+              <div id="admin-quiz-list" class="list"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>调试说明</h2>
+        <ul class="hint-list">
+          <li>学生端入口：<code>/mvp/index.html</code></li>
+          <li>核心接口：<code>/api/v1/*</code></li>
+          <li>管理端接口：<code>/adminapi/*</code></li>
+          <li>如无题目，请先运行种子脚本：<code>npm run seed:mvp</code></li>
+        </ul>
+      </section>
+    </main>
+
+    <script src="/mvp/app.js" type="module"></script>
+  </body>
+</html>

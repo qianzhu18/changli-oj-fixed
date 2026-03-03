@@ -16,6 +16,7 @@ import ExamFileManage from "@/views/Exam/ExamFileManage.vue"
 import BooksManage from "@/views/WordBooks/BooksManage.vue"
 import FileList from "@/views/Resource/FileList.vue"
 import FileUpload from "@/views/Resource/FileUpload.vue"
+import MvpConsole from "@/views/Mvp/MvpConsole.vue"
 
 
 const routes= [
@@ -109,6 +110,11 @@ const routes= [
         path: '/resource/fileupload',
         name: 'FileUpload',
         component: FileUpload,
+    },
+    {
+        path: '/mvp/console',
+        name: 'MvpConsole',
+        component: MvpConsole
     }
 
 ]

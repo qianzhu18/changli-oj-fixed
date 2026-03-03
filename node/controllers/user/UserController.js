@@ -37,6 +37,12 @@ const UserController = {
                     message: result.message,
                     data: result.data,
                 })
+            } else {
+                res.status(result.code || 400).send({
+                    code: result.code || 400,
+                    ActionType: "ERROR",
+                    message: result.message || '注册失败',
+                })
             }
         } catch (error) {
             console.error("UserRegister 失败", error);

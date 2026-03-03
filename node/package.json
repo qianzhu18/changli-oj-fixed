@@ -4,14 +4,17 @@
   "private": true,
   "scripts": {
     "start": "node-dev ./bin/www",
+    "start:3002": "PORT=3002 node-dev ./bin/www",
     "prod": "set NODE_ENV=production&&node ./bin/www",
     "dev": "set NODE_ENV=development&&node-dev ./bin/www",
     "docker": "set NODE_ENV=production&&node ./bin/www",
-    "migrate:oss": "node ./script/migrateToOSS.js"
+    "migrate:oss": "node ./script/migrateToOSS.js",
+    "seed:mvp": "node ./script/seed-mvp-demo.js"
   },
   "dependencies": {
     "ali-oss": "^6.23.0",
     "axios": "^1.11.0",
+    "bcryptjs": "^2.4.3",
     "compression": "^1.8.1",
     "cookie-parser": "~1.4.4",
     "debug": "~2.6.9",

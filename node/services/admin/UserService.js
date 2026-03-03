@@ -1,12 +1,25 @@
 const UserModel = require('../../models/UserModel')
 const { deleteFile } = require('../../helpers/ossHelper');
+const { hashPassword, verifyPassword, isHashedPassword } = require('../../helpers/passwordHelper');
 
 const UserService = {
   login: async ({ username, password }) => {
-    return UserModel.find({
-      username,
-      password
-    })
+    const user = await UserModel.findOne({ username });
+    if (!user) {
+      return [];
+    }
+
+    const passwordValid = await verifyPassword(password, user.password);
+    if (!passwordValid) {
+      return [];
+    }
+
+    if (!isHashedPassword(user.password)) {
+      user.password = await hashPassword(password);
+      await user.save();
+    }
+
+    return [user];
   },
   upload: async ({ _id, username, introduction, gender, avatar }) => {
     if (avatar) {
@@ -25,9 +38,10 @@ const UserService = {
     }
   },
   add: async ({ username, introduction, gender, avatar, password, role, state, createTime }) => {
+    const hashedPassword = await hashPassword(password);
     return UserModel.create({
       username,
-      password,
+      password: hashedPassword,
       introduction,
       gender,
       avatar,

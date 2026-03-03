@@ -20,6 +20,12 @@
 			}
 		},
 		{
+			"path": "pages/mvp/console",
+			"style": {
+				"navigationBarTitleText": "MVP 控制台"
+			}
+		},
+		{
 			"path": "pages/test/translateTest",
 			"style": {
 				"navigationBarTitleText": "翻译测试"

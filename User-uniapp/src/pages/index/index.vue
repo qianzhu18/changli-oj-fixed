@@ -20,6 +20,11 @@
         <uniNavigation />
       </view>
     </view>
+    <view class="mvp-entry" @click="handleOpenMvpConsole">
+      <text class="mvp-title">MVP Web 调试页</text>
+      <text class="mvp-desc">进入按开源项目结构实现的最小可用页面</text>
+      <text class="mvp-arrow">立即进入 ›</text>
+    </view>
     <view class="hot-exam">
       <view class="header-section">
         <view class="hot-exam-title">推荐练习</view>
@@ -120,6 +125,12 @@ const handleCreateQuestionBank = () => {
   })
 }
 
+const handleOpenMvpConsole = () => {
+  uni.navigateTo({
+    url: '/pages/mvp/console'
+  })
+}
+
 // 页面滚动事件
 onPageScroll((e) => {
   // 调用BackToTop组件的滚动处理方法
@@ -148,6 +159,36 @@ onMounted(() => {
   border-radius: 20rpx;
   background-color: #e6eeff;
   overflow: hidden;
+}
+
+.mvp-entry {
+  margin-top: 16rpx;
+  padding: 22rpx;
+  border-radius: 16rpx;
+  background: linear-gradient(120deg, #0f7bff 0%, #00b894 100%);
+  color: #fff;
+}
+
+.mvp-title {
+  display: block;
+  font-size: 32rpx;
+  font-weight: 700;
+}
+
+.mvp-desc {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  opacity: 0.95;
+}
+
+.mvp-arrow {
+  display: inline-block;
+  margin-top: 14rpx;
+  padding: 6rpx 16rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.22);
+  font-size: 22rpx;
 }
 
 .noticbar {

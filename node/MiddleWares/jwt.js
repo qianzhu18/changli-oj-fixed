@@ -1,6 +1,6 @@
 require('dotenv').config()
 const jsonwebtoken = require('jsonwebtoken');
-const secret = process.env.TOKEN_SECRET 
+const secret = process.env.TOKEN_SECRET || 'changli-mvp-local-secret';
 const JWT = {
     generate(value,expires){
        return jsonwebtoken.sign(value,secret,{expiresIn:expires})

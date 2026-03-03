@@ -21,6 +21,7 @@ const ExamService = {
         return await ExamModel.find({isPublish:1},{
             cover:1,
             name:1,
+            code:1,
             _id:1,
             createdTime:1,
             day:1,

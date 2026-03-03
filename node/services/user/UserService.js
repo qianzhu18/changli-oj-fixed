@@ -8,6 +8,7 @@ const { getNextUserCount } = require("../../models/CounterModel"); // 引入计�
 const mongoose = require('mongoose');
 const chat  = require("../../llm/admin/Chat/chat");
 const UserQuestionModel = require("../../models/UserQuestionModel");
+const { hashPassword, verifyPassword, isHashedPassword } = require("../../helpers/passwordHelper");
 
 
 const UserService = {
@@ -75,7 +76,24 @@ const UserService = {
         try {
             // 检查验证码是否正确（这里需要实现验证码验证逻辑）
             // 假设验证码验证通过，直接注册用户
-            console.log(account, verifyCode, password);
+            console.log('UserRegister 请求:', account, verifyCode ? 'hasVerifyCode' : 'noVerifyCode');
+
+            const existedUser = await ConsumerModel.findOne({
+                $or: [
+                    { username: account },
+                    { email: account }
+                ]
+            });
+
+            if (existedUser) {
+                return {
+                    code: 409,
+                    success: false,
+                    message: '账号已存在'
+                };
+            }
+
+            const hashedPassword = await hashPassword(password);
 
             // 为新用户生成注册顺序号
             const userCount = await getNextUserCount();
@@ -83,7 +101,7 @@ const UserService = {
             const newUser = new ConsumerModel({ 
                 username: account,
                 email: account, 
-                password,
+                password: hashedPassword,
                 createTime: new Date(),
                 userCount: userCount, // 设置用户注册顺序号
             });
@@ -121,13 +139,19 @@ const UserService = {
                     message: '账号尚未注册'
                 };
             }
-            // 检查密码是否匹配（这里假设密码是明文存储，实际应用中应使用哈希存储）
-            if (user.password !== password) {
+            const passwordValid = await verifyPassword(password, user.password);
+            if (!passwordValid) {
                 return {
                     code: 401,
                     success: false,
                     message: '密码或账号错误'
                 };
+            }
+
+            // 明文密码平滑升级为哈希
+            if (!isHashedPassword(user.password)) {
+                user.password = await hashPassword(password);
+                await user.save();
             }
 
             // 确保用户有注册顺序号（兼容性处理）
@@ -164,6 +188,41 @@ const UserService = {
                 code: 500,
                 success: false,
                 message: '登录失败',
+                error: error.message
+            };
+        }
+    },
+    getUserProfile: async (uid) => {
+        try {
+            const user = await ConsumerModel.findById(uid).select('_id username nickname avatar gender email userCount createTime');
+            if (!user) {
+                return {
+                    code: 404,
+                    success: false,
+                    message: '用户不存在'
+                };
+            }
+
+            return {
+                code: 200,
+                success: true,
+                data: {
+                    uid: user._id,
+                    username: user.username || '',
+                    nickname: user.nickname || '',
+                    avatar: user.avatar || '',
+                    gender: user.gender || 0,
+                    email: user.email || '',
+                    userCount: user.userCount || null,
+                    createTime: user.createTime || null
+                }
+            };
+        } catch (error) {
+            console.error("getUserProfile 失败", error);
+            return {
+                code: 500,
+                success: false,
+                message: '获取用户信息失败',
                 error: error.message
             };
         }
@@ -399,7 +458,7 @@ const UserService = {
                 if (existingUser._id.toString() === uid) {
                     wechatUser.username = account;
                     wechatUser.email = account;
-                    wechatUser.password = password;
+                    wechatUser.password = await hashPassword(password);
                     await wechatUser.save()
                     return {
                         code: 200,
@@ -427,7 +486,7 @@ const UserService = {
             // 更新微信用户信息，绑定账号和密码
             wechatUser.username = account;
             wechatUser.email = account; // 将账号同时作为邮箱
-            wechatUser.password = password;
+            wechatUser.password = await hashPassword(password);
             
             await wechatUser.save();
             

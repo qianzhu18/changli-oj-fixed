@@ -86,6 +86,13 @@
         </el-icon>
         <span>模型对话</span>
       </el-menu-item>
+
+      <el-menu-item index="/mvp/console">
+        <el-icon>
+          <DataAnalysis />
+        </el-icon>
+        <span>MVP控制台</span>
+      </el-menu-item>
       
     </el-menu>
   </el-aside>
@@ -102,7 +109,8 @@ import {
   Cpu ,
   ChatLineRound,
   ChatDotSquare,
-  FolderOpened} 
+  FolderOpened,
+  DataAnalysis} 
   from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router';
 
